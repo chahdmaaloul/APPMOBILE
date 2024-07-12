@@ -1,118 +1,115 @@
 import React, { useState } from 'react';
-import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image } from 'react-native';
-import axios from 'axios';
+import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { user_login } from '../Api/Apiuser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function LoginForm({ navigation }) {
-
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  
 
-  const handleSignup = async () => {
-    if ( !email || !password ) {
+  const handleLogin = async () => {
+    if (!username || !password) {
       Alert.alert('Erreur', 'Tous les champs sont obligatoires.');
       return;
     }
-
-   
-
+    
     try {
-      const userData = {
-        enabled: true,
-        email: email,
+      const result = await user_login({
+        username: username.toLowerCase(),
         password: password,
-        created: new Date().toISOString()
-      };
+      });
 
-      const response = await axios.post(
-        'https://cmc.crm-edi.info/paraMobile/api/public/api/58390/documentation/api/v1/crm_users',
-        userData,
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.status === 200 || response.status === 201) {
-        Alert.alert('connection réussie', 'vous avez entrer avec succès !');
-        // Redirigez l'utilisateur si nécessaire
+      if (result.status === 200) {
+        await AsyncStorage.setItem("AccessToken", result.data.token);
+        Alert.alert('Connexion réussie', 'Vous vous êtes connecté avec succès !');
+        navigation.replace("home");
       } else {
-        throw new Error(`Erreur lors de la connexion: ${response.status}`);
+        Alert.alert('Erreur', 'Échec de la connexion.');
       }
-    } catch (error) {
-      Alert.alert('Erreur', 'Une erreur est survenue lors de la connection . Veuillez réessayer.');
-      console.error('Erreur lors de la connection :', error);
+    } catch (err) {
+      console.error('Erreur lors de la connexion :', err);
+      Alert.alert('Erreur', 'Une erreur est survenue lors de la connexion.');
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.topHalf}>
-        <Image source={require('../assets/edilogo.png')} />
-      </View>
-      <Text style={styles.title}>Connection </Text>
-      <Text style={styles.subtitle}>Entrer vos identifiants pour continuer</Text>
-      <View style={styles.container1}>
-      
-       
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="mail-outline" size={24} color="#4b67a1" style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            placeholderTextColor="#aaa"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-          />
-        </View>
-        
-        <View style={styles.inputContainer}>
-          <Ionicons name="lock-closed-outline" size={24} color="#4b67a1" style={styles.icon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Mot de passe"
-            placeholderTextColor="#aaa"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry={!isPasswordVisible}
-          />
-          <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
-            <Ionicons
-              name={isPasswordVisible ? "eye-outline" : "eye-off-outline"}
-              size={24}
-              color="#aaa"
-            />
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('Pass')} style={styles.forgotPasswordContainer}>
-          <Text style={styles.forgotPasswordText}>Mot de passe oublié !</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.button} onPress={handleSignup}>
-          <Text style={styles.buttonText}>s'inscrire</Text>
-        </TouchableOpacity>
-        <View style={styles.signInContainer}>
-          <Text style={styles.goto}>Vous n'avez pas un compte ? </Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-            <Text style={styles.signInText}>s'inscrire</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </SafeAreaView>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={100}
+    >
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.topHalf}>
+            <Image source={require('../assets/edilogo.png')} style={styles.mainImage} />
+          </View>
+          <Text style={styles.title}>Connexion</Text>
+          <Text style={styles.subtitle}>Entrer vos identifiants pour continuer</Text>
+          <View style={styles.container1}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail-outline" size={24} color="#4b67a1" style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Username"
+                placeholderTextColor="#aaa"
+                value={username}
+                onChangeText={setUsername}
+                keyboardType="email-address"
+              />
+            </View>
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed-outline" size={24} color="#4b67a1" style={styles.icon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mot de passe"
+                placeholderTextColor="#aaa"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!isPasswordVisible}
+              />
+              <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                <Ionicons
+                  name={isPasswordVisible ? "eye-outline" : "eye-off-outline"}
+                  size={24}
+                  color="#aaa"
+                />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('Pass')} style={styles.forgotPasswordContainer}>
+              <Text style={styles.forgotPasswordText}>Mot de passe oublié !</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.button} onPress={handleLogin}>
+              <Text style={styles.buttonText}>Se connecter</Text>
+            </TouchableOpacity>
+            <View style={styles.signInContainer}>
+              <Text style={styles.goto}>Vous n'avez pas un compte ? </Text>
+              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+                <Text style={styles.signInText}>S'inscrire</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </SafeAreaView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  mainImage: {
+    marginTop: 40,
+    width: 190,
+    height: 190,
+  },
   container: {
     flex: 1,
     backgroundColor: 'white',
     padding: 10,
+  },
+  scrollContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   container1: {
     flex: 1,
@@ -187,7 +184,7 @@ const styles = StyleSheet.create({
   forgotPasswordContainer: {
     alignItems: 'flex-end',
     marginVertical: 10,
-   marginLeft:200
+    marginLeft: 'auto',
   },
   forgotPasswordText: {
     color: '#4b67a1',
