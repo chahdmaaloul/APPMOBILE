@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView , KeyboardAvoidingView , Platform } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,8 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
 import 'moment/locale/fr';
+import Apimaneger from '../Api/Apimanager';
+import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
@@ -22,11 +24,30 @@ const validationSchema = Yup.object().shape({
 
 const DemandeRemboursement = () => {
   const navigation = useNavigation();
+  const { user } = useContext(UserContext);
   const [dateRemboursementPrime, setDateRemboursementPrime] = useState(new Date());
   const [dateRemboursementFrais, setDateRemboursementFrais] = useState(new Date());
   const [showDateRemboursementPrime, setShowDateRemboursementPrime] = useState(false);
   const [showDateRemboursementFrais, setShowDateRemboursementFrais] = useState(false);
+  const [reference, setReference] = useState('');
 
+  useEffect(() => {
+    const fetchReference = async () => {
+      try {
+        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DR?page=1');
+        const data = response.data;
+        if (data.length > 0 && data[0]['']) {
+          setReference(data[0]['']); // Remplir la référence automatiquement
+        } else {
+          console.error('Aucune référence trouvée dans la réponse.');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la référence:', error);
+      }
+    };
+
+    fetchReference();
+  }, []);
   const onChangeDateRemboursementPrime = (event, selectedDate) => {
     const currentDate = selectedDate || dateRemboursementPrime;
     setShowDateRemboursementPrime(false);
@@ -39,14 +60,65 @@ const DemandeRemboursement = () => {
     setDateRemboursementFrais(currentDate);
   };
 
+  const handleSubmit = async (values, { resetForm }) => {
+    // Créer l'objet demande avec la nouvelle référence
+    const demande = {
+      typegrh: 'DR',
+      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      des: values.remarque,
+      datedeb: dateRemboursementPrime.toISOString(),
+      datefin: dateRemboursementFrais.toISOString(),
+      datel: new Date().toISOString(),
+      categorie: values.service,
+      aup: values.montant,
+      etatbp: "null",
+      ref: reference,
+    };
+    const removeEmptyFields = (obj) => {y
+      return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== ''));
+    };
+    try {
+      const response = await Apimaneger.post('/api/v1/grhs', removeEmptyFields(demande), {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (response.status === 201) {
+        console.log('Demande envoyée avec succès', response.data);
+        resetForm(); // Réinitialiser le formulaire après l'envoi
+        navigation.goBack(); // Revenir à l'écran précédent
+      } else {
+        console.log("Erreur lors de l'envoi de la demande", response.status);
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error("Erreur lors de l'envoi de la demande:", error.response.data);
+      } else if (error.request) {
+        console.error("Erreur lors de l'envoi de la demande:", error.request);
+      } else {
+        console.error("Erreur lors de l'envoi de la demande:", error.message);
+      }
+    }
+  };
+
   return (
+    <KeyboardAvoidingView
+    style={styles.container}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={1}
+  >
     <Formik
-      initialValues={{ employe: '', service: '', montant: '', dateRemboursementPrime: '', dateRemboursementFrais: '', remarque: '' }}
-      validationSchema={validationSchema}
-      onSubmit={(values, { resetForm }) => {
-        console.log('Form Values:', values);
-        resetForm(); // Reset form after submission
+      initialValues={{
+        
+        employe: user ? user.ematricule : '',
+        service: '',
+        montant: '',
+        dateRemboursementPrime: '',
+        dateRemboursementFrais: '',
+        remarque: ''
       }}
+      validationSchema={validationSchema}
+      onSubmit={handleSubmit}
     >
       {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>
@@ -70,7 +142,21 @@ const DemandeRemboursement = () => {
             <ScrollView style={styles.scrollView}>
               <View style={styles.formContainer}>
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Employé</Text>
+                  <Text style={styles.label}>Référence</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="tag" size={20} color="#999" style={styles.icon} />
+                    <TextInput
+                      style={styles.input}
+                      value={reference}
+                      placeholder="Référence"
+                      placeholderTextColor="#999"
+                      editable={false} // Non éditable
+                    />
+                  </View>
+                  {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}
+                </View>
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Matricule employé</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="user" size={20} color="#999" style={styles.icon} />
                     <TextInput
@@ -80,6 +166,7 @@ const DemandeRemboursement = () => {
                       onBlur={handleBlur('employe')}
                       placeholder="Nom de l'employé"
                       placeholderTextColor="#999"
+                      editable={false}
                     />
                   </View>
                   {touched.employe && errors.employe && <Text style={styles.errorText}>{errors.employe}</Text>}
@@ -120,7 +207,10 @@ const DemandeRemboursement = () => {
 
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Date de remboursement prime chantier</Text>
-                  <TouchableOpacity onPress={() => setShowDateRemboursementPrime(true)} style={styles.datePickerButton}>
+                  <TouchableOpacity 
+                    onPress={() => setShowDateRemboursementPrime(true)} 
+                    style={styles.datePickerButton}
+                  >
                     <Icon name="calendar" size={20} color="#999" style={styles.icon} />
                     <Text style={styles.dateText}>{moment(dateRemboursementPrime).format('LL')}</Text>
                   </TouchableOpacity>
@@ -140,7 +230,10 @@ const DemandeRemboursement = () => {
 
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Date de remboursement frais</Text>
-                  <TouchableOpacity onPress={() => setShowDateRemboursementFrais(true)} style={styles.datePickerButton}>
+                  <TouchableOpacity 
+                    onPress={() => setShowDateRemboursementFrais(true)} 
+                    style={styles.datePickerButton}
+                  >
                     <Icon name="calendar" size={20} color="#999" style={styles.icon} />
                     <Text style={styles.dateText}>{moment(dateRemboursementFrais).format('LL')}</Text>
                   </TouchableOpacity>
@@ -167,7 +260,7 @@ const DemandeRemboursement = () => {
                       value={values.remarque}
                       onChangeText={handleChange('remarque')}
                       onBlur={handleBlur('remarque')}
-                      placeholder="remarque "
+                      placeholder="Remarque"
                       placeholderTextColor="#999"
                       multiline
                       numberOfLines={5}
@@ -177,7 +270,7 @@ const DemandeRemboursement = () => {
                 </View>
 
                 <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Enregistrer</Text>
+                  <Text style={styles.buttonText}>Envoyer</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -185,13 +278,14 @@ const DemandeRemboursement = () => {
         </View>
       )}
     </Formik>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
   },
   topHalf: {
     flexDirection: 'row',
@@ -207,6 +301,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 30,
+    borderBottomRightRadius :40,
+    borderBottomLeftRadius :40,
   },
   title: {
     flex: 1,
@@ -254,19 +350,20 @@ const styles = StyleSheet.create({
   datePickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  dateText: {
-    fontSize: 16,
-    marginLeft: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 25,
     backgroundColor: '#f5f5f5',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  dateText: {
+    fontSize: 16,
+    marginLeft: 10,
+    color: '#000',
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',

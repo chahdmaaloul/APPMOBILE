@@ -1,7 +1,7 @@
 import Apimanager from './Apimanager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export const user_signup = async (userData) => {
+export const user_byid = async (userid) => {
   try {
     // Récupérer le token d'accès depuis AsyncStorage
     const token = await AsyncStorage.getItem('AccessToken');
@@ -11,7 +11,7 @@ export const user_signup = async (userData) => {
     }
 
     // Effectuer la requête avec le token dans les headers
-    const result = await Apimanager.post('/api/v1/crm_users', userData, {
+    const result = await Apimanager.patch('/api/v1/crm_users/{id}', userid, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`

@@ -1,38 +1,78 @@
-import React, { useState } from 'react';
-import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { user_login } from '../Api/Apiuser';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { get_users } from '../Api/apigetuserscrm';
+import { UserContext } from '../Api/UserContext';
+import Animated, { Easing, useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 
 export default function LoginForm({ navigation }) {
+  const { setUser } = useContext(UserContext);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [loadingLogin, setLoadingLogin] = useState(false);
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(50);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, {
+      duration: 1000,
+      easing: Easing.out(Easing.quad),
+    });
+    translateY.value = withTiming(0, {
+      duration: 1000,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [opacity, translateY]);
 
   const handleLogin = async () => {
     if (!username || !password) {
       Alert.alert('Erreur', 'Tous les champs sont obligatoires.');
       return;
     }
-    
+    setLoadingLogin(true);
+
     try {
       const result = await user_login({
         username: username.toLowerCase(),
-        password: password,
+        password: password
       });
 
       if (result.status === 200) {
-        await AsyncStorage.setItem("AccessToken", result.data.token);
-        Alert.alert('Connexion réussie', 'Vous vous êtes connecté avec succès !');
-        navigation.replace("home");
+        const token = result.data.token;
+        await AsyncStorage.setItem("AccessToken", token);
+
+        const users = await get_users();
+        const user = users.find(user => user.username === username.toLowerCase());
+
+        if (user) {
+          await AsyncStorage.setItem("UserDetails", JSON.stringify(user));
+          setUser(user);
+          navigation.replace("home", { user });
+        } else {
+          Alert.alert('Erreur', 'Utilisateur non trouvé.');
+          setLoadingLogin(false);
+        }
       } else {
-        Alert.alert('Erreur', 'Échec de la connexion.');
+        Alert.alert('Erreur', 'Vérifiez vos coordonnées.');
+        setLoadingLogin(false);
       }
     } catch (err) {
       console.error('Erreur lors de la connexion :', err);
       Alert.alert('Erreur', 'Une erreur est survenue lors de la connexion.');
+    } finally {
+      setLoadingLogin(false);
     }
   };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   return (
     <KeyboardAvoidingView
@@ -43,16 +83,16 @@ export default function LoginForm({ navigation }) {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <SafeAreaView style={styles.container}>
           <View style={styles.topHalf}>
-            <Image source={require('../assets/edilogo.png')} style={styles.mainImage} />
+            <Image source={require('../assets/logocomplet.png')} style={styles.mainImage} />
           </View>
           <Text style={styles.title}>Connexion</Text>
-          <Text style={styles.subtitle}>Entrer vos identifiants pour continuer</Text>
-          <View style={styles.container1}>
+
+          <Animated.View style={[styles.container1, animatedStyle]}>
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={24} color="#4b67a1" style={styles.icon} />
+              <Ionicons name="person-outline" size={24} color="#4b67a1" style={styles.icon} />
               <TextInput
                 style={styles.input}
-                placeholder="Username"
+                placeholder="Nom d'utilisateur"
                 placeholderTextColor="#aaa"
                 value={username}
                 onChangeText={setUsername}
@@ -80,16 +120,10 @@ export default function LoginForm({ navigation }) {
             <TouchableOpacity onPress={() => navigation.navigate('Pass')} style={styles.forgotPasswordContainer}>
               <Text style={styles.forgotPasswordText}>Mot de passe oublié !</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={handleLogin}>
-              <Text style={styles.buttonText}>Se connecter</Text>
+            <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loadingLogin}>
+              {loadingLogin ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Se connecter</Text>}
             </TouchableOpacity>
-            <View style={styles.signInContainer}>
-              <Text style={styles.goto}>Vous n'avez pas un compte ? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
-                <Text style={styles.signInText}>S'inscrire</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -98,9 +132,9 @@ export default function LoginForm({ navigation }) {
 
 const styles = StyleSheet.create({
   mainImage: {
-    marginTop: 40,
-    width: 190,
-    height: 190,
+    width:150,
+  height:150,
+    marginTop: 100,
   },
   container: {
     flex: 1,
@@ -139,7 +173,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     padding: 15,
     borderRadius: 25,
     alignItems: 'center',
@@ -159,27 +193,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
     marginBottom: 10,
-    marginLeft: 20,
     marginTop: 50,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    marginLeft: 20,
-  },
-  signInContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  goto: {
-    color: '#000',
-    fontSize: 16,
-  },
-  signInText: {
-    color: '#4b67a1',
-    fontSize: 16,
-    fontWeight: 'bold',
+    textAlign: 'center',
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
@@ -187,7 +202,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   forgotPasswordText: {
-    color: '#4b67a1',
+    color: '#006AB6',
     fontSize: 14,
     textDecorationLine: 'underline',
   },

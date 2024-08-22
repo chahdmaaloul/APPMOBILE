@@ -11,7 +11,8 @@ export const user_signup = async (userData) => {
     }
 
     // Effectuer la requête avec le token dans les headers
-    const result = await Apimanager.post('/api/v1/crm_users', userData, {
+    const result = await Apimanager.post('​/api​/v1​/media_objects', usermedia
+        , {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`

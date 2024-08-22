@@ -27,13 +27,7 @@ const AvailableLoansScreen = ({ navigation }) => {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
       />
-      <TouchableOpacity
-       style={styles.button}
-        onPress={() => navigation.navigate('pret')}
-      >
-       
-        <Text  style={styles.buttonText}>+ Faire une demande de prêt</Text>
-      </TouchableOpacity>
+    
     </View>
   );
 };

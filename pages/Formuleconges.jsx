@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView ,KeyboardAvoidingView , Platform} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -7,12 +7,13 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
 import 'moment/locale/fr';
+import Apimaneger from '../Api/Apimanager';
+import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
-// Validation schema using Yup
 const validationSchema = Yup.object().shape({
-  employe: Yup.string().required('Le nom de l\'employé est requis'),
+  employe: Yup.string().required("Le nom de l'employé est requis"),
   typeConge: Yup.string().required('Le type de congé est requis'),
   dateDebut: Yup.date().required('La date de début est requise'),
   dateFin: Yup.date()
@@ -24,10 +25,31 @@ const validationSchema = Yup.object().shape({
 
 const DemandeConge = () => {
   const navigation = useNavigation();
+  const { user } = useContext(UserContext);
   const [dateDebut, setDateDebut] = useState(new Date());
   const [dateFin, setDateFin] = useState(new Date());
   const [showDateDebut, setShowDateDebut] = useState(false);
   const [showDateFin, setShowDateFin] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reference, setReference] = useState('');
+
+  useEffect(() => {
+    const fetchReference = async () => {
+      try {
+        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DC?page=1');
+        const data = response.data;
+        if (data.length > 0 && data[0]['']) {
+          setReference(data[0]['']); // Remplir la référence automatiquement
+        } else {
+          console.error('Aucune référence trouvée dans la réponse.');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la référence:', error);
+      }
+    };
+
+    fetchReference();
+  }, []);
 
   const onChangeDateDebut = (event, selectedDate) => {
     const currentDate = selectedDate || dateDebut;
@@ -41,17 +63,72 @@ const DemandeConge = () => {
     setDateFin(currentDate);
   };
 
+  const removeEmptyFields = (obj) => {
+    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== ''));
+  };
+
+  const handleSubmitForm = async (values, { resetForm }) => {
+    setLoading(true);
+    const diffTime = Math.abs(dateFin - dateDebut);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    const demande = {
+      typegrh: 'DC',
+      codetiers: user.ematricule.toString(),
+      obj: values.typeConge,
+      datedeb: dateDebut.toISOString(),
+      datefin: dateFin.toISOString(),
+      nbrejour: diffDays.toString(),
+      duree: diffDays.toString(),
+      datel: new Date().toISOString(),
+      datec: new Date().toISOString(),
+      categorie: values.service,
+      etatbp: "",
+      etatbp1: "",
+      des: values.remarque,
+      ref: reference, 
+    };
+
+    try {
+      const response = await Apimaneger.post('/api/v1/grhs', removeEmptyFields(demande), {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (response.status === 201) {
+        console.log('Demande envoyée avec succès', response.data);
+        resetForm();
+        setDateDebut(new Date());
+        setDateFin(new Date());
+        setLoading(false);
+        navigation.goBack();
+      } else {
+        console.log("Erreur lors de l'envoi de la demande", response.status);
+      }
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de la demande:", error.message);
+    }
+  };
+
   return (
+    <KeyboardAvoidingView
+    style={styles.container}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={1}
+  >
     <Formik
-      initialValues={{ employe: '', typeConge: '', dateDebut: '', dateFin: '', service: '', remarque: '' }}
-      validationSchema={validationSchema}
-      onSubmit={(values, { resetForm }) => {
-        // Calculate the number of days of leave
-        const diffTime = Math.abs(dateFin - dateDebut);
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-        console.log('Form Values:', { ...values, nombreJours: diffDays });
-        resetForm(); // Reset form after submission
+      initialValues={{
+       
+        employe: user ? user.ematricule : '',
+        typeConge: '',
+        dateDebut: '',
+        dateFin: '',
+        service: '',
+        remarque: ''
       }}
+      validationSchema={validationSchema}
+      onSubmit={handleSubmitForm}
+      enableReinitialize={true}  // Ajouter cette ligne pour réinitialiser les valeurs lors de la récupération de la référence
     >
       {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>
@@ -71,10 +148,25 @@ const DemandeConge = () => {
               <Icon name="refresh" size={25} color="#fff" />
             </TouchableOpacity>
           </View>
+
           <View style={styles.bottomHalf}>
             <ScrollView style={styles.scrollView}>
               <View style={styles.zone}>
-                <Text style={styles.label}>Employé</Text>
+
+                <Text style={styles.label}>Référence</Text>
+                <View style={styles.inputContainer}>
+                  <Icon name="tag" size={20} color="#999" style={styles.icon} />
+                  <TextInput
+                      style={styles.input}
+                      value={reference}
+                      placeholder="Référence"
+                      placeholderTextColor="#999"
+                      editable={false} // Non éditable
+                    />
+                </View>
+                {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}
+
+                <Text style={styles.label}>Matricule employé</Text>
                 <View style={styles.inputContainer}>
                   <Icon name="user" size={20} color="#999" style={styles.icon} />
                   <TextInput
@@ -82,8 +174,9 @@ const DemandeConge = () => {
                     value={values.employe}
                     onChangeText={handleChange('employe')}
                     onBlur={handleBlur('employe')}
-                    placeholder="Nom de l'employé"
+                    placeholder="Nom d'utilisateur"
                     placeholderTextColor="#999"
+                    editable={false}
                   />
                 </View>
                 {touched.employe && errors.employe && <Text style={styles.errorText}>{errors.employe}</Text>}
@@ -124,7 +217,7 @@ const DemandeConge = () => {
                   </View>
 
                   <View style={styles.column}>
-                    <Text style={styles.label}>AU INCLUS</Text>
+                    <Text style={styles.label}>AU</Text>
                     <TouchableOpacity onPress={() => setShowDateFin(true)} style={styles.datePickerButton}>
                       <Icon name="calendar" size={20} color="#999" style={styles.icon} />
                       <Text style={styles.dateText}>{moment(dateFin).format('LL')}</Text>
@@ -146,7 +239,7 @@ const DemandeConge = () => {
 
                 <Text style={styles.label}>Service</Text>
                 <View style={styles.inputContainer}>
-                  <Icon name="briefcase" size={20} color="#999" style={styles.icon} />
+                  <Icon name="building" size={20} color="#999" style={styles.icon} />
                   <TextInput
                     style={styles.input}
                     value={values.service}
@@ -158,26 +251,26 @@ const DemandeConge = () => {
                 </View>
                 {touched.service && errors.service && <Text style={styles.errorText}>{errors.service}</Text>}
 
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>MOTIF</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="comment" size={20} color="#999" style={styles.icon} />
-                    <TextInput
-                      style={[styles.input, styles.multilineInput]}
-                      value={values.remarque}
-                      onChangeText={handleChange('Motif de la demande')}
-                      onBlur={handleBlur('Motif de la demande')}
-                      placeholder="Motif de la demande "
-                      placeholderTextColor="#999"
-                      multiline
-                      numberOfLines={5}
-                    />
-                  </View>
-                  {touched.remarque && errors.remarque && <Text style={styles.errorText}>{errors.remarque}</Text>}
+                <Text style={styles.label}>Remarque</Text>
+                <View style={styles.inputContainer}>
+                  <Icon name="pencil" size={20} color="#999" style={styles.icon} />
+                  <TextInput
+                    style={styles.input}
+                    value={values.remarque}
+                    onChangeText={handleChange('remarque')}
+                    onBlur={handleBlur('remarque')}
+                    placeholder="Ajouter une remarque"
+                    placeholderTextColor="#999"
+                    multiline
+                  />
                 </View>
+                {touched.remarque && errors.remarque && <Text style={styles.errorText}>{errors.remarque}</Text>}
 
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Enregistrer</Text>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.buttonText}>Envoyer</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -185,6 +278,7 @@ const DemandeConge = () => {
         </View>
       )}
     </Formik>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -195,7 +289,7 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
   },
   topHalf: {
     flexDirection: 'row',
@@ -211,6 +305,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 30,
+    borderBottomRightRadius :40,
+    borderBottomLeftRadius :40,
   },
   title: {
     flex: 1,
@@ -283,7 +379,7 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     paddingVertical: 15,
     borderRadius: 25,
     alignItems: 'center',

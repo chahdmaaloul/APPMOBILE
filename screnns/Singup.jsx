@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, Alert, StyleSheet, TouchableOpacity, Text, SafeAreaView, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { user_signup } from '../Api/apisigup'; // Assurez-vous que le chemin d'importation de votre API est correct
+import { get_users } from '../Api/apigetuserscrm';
+import { user_signup } from '../Api/apisigup';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Animated, { Easing, useSharedValue, withTiming, useAnimatedStyle } from 'react-native-reanimated';
 
 export default function SignupForm() {
   const navigation = useNavigation();
@@ -15,9 +17,25 @@ export default function SignupForm() {
   const [roles, setRoles] = useState([]);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Animation variables
+  const opacity = useSharedValue(0);
+  const translateY = useSharedValue(50);
+
+  useEffect(() => {
+    opacity.value = withTiming(1, {
+      duration: 1000,
+      easing: Easing.out(Easing.quad),
+    });
+    translateY.value = withTiming(0, {
+      duration: 1000,
+      easing: Easing.out(Easing.quad),
+    });
+  }, [opacity, translateY]);
 
   const handleSignup = async () => {
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword ) {
       Alert.alert('Erreur', 'Tous les champs sont obligatoires.');
       return;
     }
@@ -27,7 +45,33 @@ export default function SignupForm() {
       return;
     }
 
+    setLoading(true);
+
     try {
+      const users = await get_users();
+      console.log("Utilisateurs récupérés :", users);
+
+      const usernameExists = users.find(user => user.username.toLowerCase() === username.toLowerCase());
+      if (usernameExists) {
+        Alert.alert('Erreur', 'Le nom d\'utilisateur existe déjà. Veuillez en choisir un autre.');
+        setLoading(false);
+        return;
+      }
+
+      const emailExists = users.find(user => user.email.toLowerCase() === email.toLowerCase());
+      if (emailExists) {
+        Alert.alert('Erreur', 'L\'email existe déjà. Veuillez en choisir un autre.');
+        setLoading(false);
+        return;
+      }
+
+      // Calculer le dernier ematricule 
+      const maxEmatricule = users.reduce((max, user) => {
+        return user.ematricule > max ? user.ematricule : max;
+      }, 0);
+
+      const newEmatricule = String(maxEmatricule + 1).padStart(3, '0');
+
       const userData = {
         username: username.toLowerCase(),
         email: email.toLowerCase(),
@@ -35,6 +79,7 @@ export default function SignupForm() {
         confirmPassword: confirmPassword,
         client: client,
         roles: roles,
+        ematricule: newEmatricule
       };
 
       const result = await user_signup(userData);
@@ -48,8 +93,17 @@ export default function SignupForm() {
     } catch (err) {
       console.error('Erreur lors de l\'inscription :', err);
       Alert.alert('Erreur', 'Une erreur est survenue lors de l\'inscription.');
+    } finally {
+      setLoading(false);
     }
   };
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: opacity.value,
+      transform: [{ translateY: translateY.value }],
+    };
+  });
 
   return (
     <KeyboardAvoidingView
@@ -60,11 +114,11 @@ export default function SignupForm() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <SafeAreaView style={styles.container}>
           <View style={styles.topHalf}>
-            <Image source={require('../assets/edilogo.png')} style={styles.mainImage} />
+            <Image source={require('../assets/edilogo.png')} />
           </View>
           <Text style={styles.title}>Inscription</Text>
-          <Text style={styles.subtitle}>Veuillez remplir le formulaire pour vous inscrire</Text>
-          <View style={styles.container1}>
+
+          <Animated.View style={[styles.container1, animatedStyle]}>
             <View style={styles.inputContainer}>
               <Ionicons name="person-outline" size={24} color="#4b67a1" style={styles.icon} />
               <TextInput
@@ -75,6 +129,7 @@ export default function SignupForm() {
                 onChangeText={setUsername}
               />
             </View>
+
             <View style={styles.inputContainer}>
               <Ionicons name="mail-outline" size={24} color="#4b67a1" style={styles.icon} />
               <TextInput
@@ -122,8 +177,9 @@ export default function SignupForm() {
                 />
               </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.button} onPress={handleSignup}>
-              <Text style={styles.buttonText}>S'inscrire</Text>
+
+            <TouchableOpacity style={styles.button} onPress={handleSignup} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>S'inscrire</Text>}
             </TouchableOpacity>
             <View style={styles.signInContainer}>
               <Text style={styles.goto}>Déjà un compte ? </Text>
@@ -131,7 +187,7 @@ export default function SignupForm() {
                 <Text style={styles.signInText}>Se connecter</Text>
               </TouchableOpacity>
             </View>
-          </View>
+          </Animated.View>
         </SafeAreaView>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -140,7 +196,7 @@ export default function SignupForm() {
 
 const styles = StyleSheet.create({
   mainImage: {
-    marginTop: 40,
+    marginTop: 60,
     width: 190,
     height: 190,
   },
@@ -181,7 +237,7 @@ const styles = StyleSheet.create({
     color: '#000',
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     padding: 15,
     borderRadius: 25,
     alignItems: 'center',
@@ -203,6 +259,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     marginLeft: 20,
     marginTop: 50,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 16,
@@ -211,16 +268,14 @@ const styles = StyleSheet.create({
   },
   signInContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     marginTop: 20,
-  },
-  goto: {
-    color: '#000',
-    fontSize: 16,
+    justifyContent: 'center',
   },
   signInText: {
-    color: '#4b67a1',
-    fontSize: 16,
+    color: '#006AB6',
     fontWeight: 'bold',
+  },
+  goto: {
+    color: '#333',
   },
 });

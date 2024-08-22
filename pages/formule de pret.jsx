@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useContext , useEffect} from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView,KeyboardAvoidingView , Platform} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
+import Apimaneger from '../Api/Apimanager';
+import { UserContext } from '../Api/UserContext';
 
 // Définition du schéma de validation avec Yup
 const validationSchema = Yup.object().shape({
@@ -23,11 +25,31 @@ const validationSchema = Yup.object().shape({
 // Composant principal pour la demande de prêt
 const DemandePret = () => {
   const navigation = useNavigation();
+  const { user } = useContext(UserContext);
   const [dateDebut, setDateDebut] = useState(new Date());
   const [dateFin, setDateFin] = useState(new Date());
   const [showDateDebut, setShowDateDebut] = useState(false);
   const [showDateFin, setShowDateFin] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [reference, setReference] = useState('');
 
+  useEffect(() => {
+    const fetchReference = async () => {
+      try {
+        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DP?page=1');
+        const data = response.data;
+        if (data.length > 0 && data[0]['']) {
+          setReference(data[0]['']); // Remplir la référence automatiquement
+        } else {
+          console.error('Aucune référence trouvée dans la réponse.');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la référence:', error);
+      }
+    };
+
+    fetchReference();
+  }, []);
   const onChangeDateDebut = (event, selectedDate) => {
     const currentDate = selectedDate || dateDebut;
     setShowDateDebut(false);
@@ -40,15 +62,72 @@ const DemandePret = () => {
     setDateFin(currentDate);
   };
 
+  const handleSubmitForm = async (values, { resetForm }) => {
+    setLoading(true);
+    const diffTime = Math.abs(dateFin - dateDebut);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    let demande = {
+      typegrh: 'DP',
+      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      des: values.remarque,
+      duree: diffDays.toString(),
+      datedeb: dateDebut.toISOString(),
+      datefin: dateFin.toISOString(),
+      nbrejour: diffDays.toString(),
+      datel: new Date().toISOString(),
+      datec: new Date().toISOString(),
+      categorie: values.service,
+      aup: values.montant,
+      obj: values.objet,
+      moydep: values.mensualite,
+      ref: reference,
+      etatbp:"null",
+    };
+    console.log(demande); 
+
+    try {
+      const response = await Apimaneger.post('/api/v1/grhs', demande, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (response.status === 201) {
+        console.log('Demande envoyée avec succès', response.data);
+        resetForm();
+        setDateDebut(new Date());
+        setDateFin(new Date());
+        setLoading(false);
+        navigation.goBack();
+      } else {
+        console.log("Erreur lors de l'envoi de la demande", response.status);
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error("Erreur lors de l'envoi de la demande:", error.response.data);
+      } else if (error.request) {
+        console.error("Erreur lors de l'envoi de la demande:", error.request);
+      } else {
+        console.error("Erreur lors de l'envoi de la demande:", error.message);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
+    <KeyboardAvoidingView
+    style={styles.container}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={1}
+  >
     <Formik
-      initialValues={{ employe: '', service: '', montant: '', objet: '', mensualite: '', taux: '', dateDebut: '', dateFin: '', remarque: '' }}
+    
+      initialValues={{ reference: '',employe: user ? user.ematricule : '', service: '', montant: '', objet: '', mensualite: '', taux: '', dateDebut: '', dateFin: '', remarque: '' }}
       validationSchema={validationSchema}
-      onSubmit={(values, { resetForm }) => {
-        console.log('Form Values:', values);
-        resetForm(); // Reset form after submission
-      }}
+      onSubmit={handleSubmitForm}
     >
+    
       {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>
           <View style={styles.topHalf}>
@@ -70,8 +149,23 @@ const DemandePret = () => {
           <View style={styles.bottomHalf}>
             <ScrollView style={styles.scrollView}>
               <View style={styles.formContainer}>
+              <View style={styles.formGroup}>
+                  
+                  <Text style={styles.label}>Référence</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="tag" size={20} color="#999" style={styles.icon} />
+                    <TextInput
+                      style={styles.input}
+                      value={reference}
+                      placeholder="Référence"
+                      placeholderTextColor="#999"
+                      editable={false} // Non éditable
+                    />
+                  </View>
+                  {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}
+                  </View>
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Employé</Text>
+                  <Text style={styles.label}>Matricule employé</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="user" size={20} color="#999" style={styles.icon} />
                     <TextInput
@@ -81,6 +175,7 @@ const DemandePret = () => {
                       onBlur={handleBlur('employe')}
                       placeholder="Nom de l'employé"
                       placeholderTextColor="#999"
+                      editable={false}
                     />
                   </View>
                   {touched.employe && errors.employe && <Text style={styles.errorText}>{errors.employe}</Text>}
@@ -136,15 +231,15 @@ const DemandePret = () => {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Mensualiter</Text>
+                  <Text style={styles.label}>Mensualité</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="credit-card" size={20} color="#999" style={styles.icon} />
                     <TextInput
                       style={styles.input}
                       value={values.mensualite}
-                      onChangeText={handleChange('mensualiter')}
-                      onBlur={handleBlur('mensualiter')}
-                      placeholder="Mensualiter"
+                      onChangeText={handleChange('mensualite')}
+                      onBlur={handleBlur('mensualite')}
+                      placeholder="Mensualité"
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
@@ -153,7 +248,7 @@ const DemandePret = () => {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Taux (%)</Text>
+                  <Text style={styles.label}>Taux</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="percent" size={20} color="#999" style={styles.icon} />
                     <TextInput
@@ -210,6 +305,8 @@ const DemandePret = () => {
                   </View>
                 </View>
 
+
+                
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Remarque</Text>
                   <View style={styles.inputContainer}>
@@ -229,7 +326,7 @@ const DemandePret = () => {
                 </View>
 
                 <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Enregistrer</Text>
+                  <Text style={styles.buttonText}>Envoyer</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -237,13 +334,14 @@ const DemandePret = () => {
         </View>
       )}
     </Formik>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
   },
   topHalf: {
     flexDirection: 'row',
@@ -259,6 +357,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 30,
+    borderBottomRightRadius :40,
+    borderBottomLeftRadius :40,
   },
   title: {
     flex: 1,
@@ -330,7 +430,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',

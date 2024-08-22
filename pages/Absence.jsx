@@ -1,74 +1,141 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import axios from 'axios';
-import moment from 'moment';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
+import Apimaneger from '../Api/Apimanager';
+import { useUser } from '../Api/UserContext';
+import Icon from 'react-native-vector-icons/FontAwesome';
 
-const AbsenceTracker = () => {
-  const [absences, setAbsences] = useState([]);
-  const [weeklyAbsences, setWeeklyAbsences] = useState(0);
-  const [monthlyAbsences, setMonthlyAbsences] = useState(0);
-  const [quarterlyAbsences, setQuarterlyAbsences] = useState(0);
-  const [yearlyAbsences, setYearlyAbsences] = useState(0);
+const { width } = Dimensions.get('window');
+
+const AbsencePage = () => {
+  const [demandes, setDemandes] = useState([]);
+  const [monthlyAbsences, setMonthlyAbsences] = useState({});
+  const [loading, setLoading] = useState(false); // État pour le chargement
+  const [noDemandesMessage, setNoDemandesMessage] = useState("");
+  const [expandedMonths, setExpandedMonths] = useState(new Set());
+  const { user } = useUser();
 
   useEffect(() => {
-    // Remplacez l'URL par l'endpoint de votre API
-    axios.get('https://api.example.com/absences')
-      .then(response => {
-        setAbsences(response.data);
-        calculateAbsences(response.data);
-      })
-      .catch(error => {
-        console.error('Erreur lors de la récupération des absences:', error);
+    const fetchDemandes = async () => {
+      try {
+        setLoading(true);
+        const response = await Apimaneger.get(`api/v1/grhs`);
+        console.log('Données récupérées:', response.data); // Vérifiez la structure des données ici
+        setDemandes(response.data);
+      } catch (error) {
+        console.error('Error fetching demandes:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDemandes();
+  }, []); // Utiliser une dépendance vide pour que l'effet s'exécute uniquement au premier rendu
+
+  useEffect(() => {
+    if (user) {
+      // Filtrer les demandes
+      const filtered = demandes
+        .filter(demande => 
+          demande.typegrh && demande.codetiers &&
+          (demande.typegrh.trim() === 'DC' || demande.typegrh.trim() === 'DA') &&
+          demande.etatbp === true &&
+          demande.codetiers.trim() === user.ematricule
+        )
+        .map(demande => ({
+          datedeb: demande.datedeb,
+          datefin: demande.datefin,
+          duree: parseFloat(demande.duree) || 0
+        }));
+
+      // Regrouper par mois
+      const monthlyTotals = {};
+      for (let i = 1; i <= 12; i++) {
+        monthlyTotals[i] = { total: 0, details: [] };
+      }
+
+      filtered.forEach(demande => {
+        const month = new Date(demande.datedeb).getMonth() + 1; // Mois (1-12)
+        monthlyTotals[month].total += demande.duree;
+        monthlyTotals[month].details.push(demande);
       });
-  }, []);
 
-  const calculateAbsences = (data) => {
-    const now = moment();
-    const startOfWeek = now.clone().startOf('week');
-    const startOfMonth = now.clone().startOf('month');
-    const startOfQuarter = now.clone().startOf('quarter');
-    const startOfYear = now.clone().startOf('year');
+      // Mettre à jour les absences mensuelles
+      setMonthlyAbsences(monthlyTotals);
 
-    let weeklyCount = 0;
-    let monthlyCount = 0;
-    let quarterlyCount = 0;
-    let yearlyCount = 0;
+      // Gestion du message lorsque aucune demande n'est trouvée
+      if (Object.keys(monthlyTotals).length === 0) {
+        setNoDemandesMessage("Aucune absence trouvée.");
+      } else {
+        setNoDemandesMessage("");
+      }
+    }
+  }, [demandes, user]);
 
-    data.forEach(absence => {
-      const absenceDate = moment(absence.date);
-
-      if (absenceDate.isAfter(startOfWeek)) weeklyCount++;
-      if (absenceDate.isAfter(startOfMonth)) monthlyCount++;
-      if (absenceDate.isAfter(startOfQuarter)) quarterlyCount++;
-      if (absenceDate.isAfter(startOfYear)) yearlyCount++;
+  const toggleMonthDetails = (month) => {
+    setExpandedMonths(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(month)) {
+        newExpanded.delete(month);
+      } else {
+        newExpanded.add(month);
+      }
+      return newExpanded;
     });
-
-    setWeeklyAbsences(weeklyCount);
-    setMonthlyAbsences(monthlyCount);
-    setQuarterlyAbsences(quarterlyCount);
-    setYearlyAbsences(yearlyCount);
   };
 
+  const renderItem = ({ item }) => (
+    <View style={styles.item}>
+      <Text style={styles.monthText}>Mois: {item.month}</Text>
+      <Text style={styles.totalDaysText}>Total des jours: {item.totalDays} jours</Text>
+      <TouchableOpacity onPress={() => toggleMonthDetails(item.month)} style={styles.toggleButton}>
+        <Icon name={expandedMonths.has(item.month) ? 'minus' : 'plus'} size={20} color="orange" />
+        <Text style={styles.toggleButtonText}>
+          {expandedMonths.has(item.month) ? 'Moins' : 'Plus'}
+        </Text>
+      </TouchableOpacity>
+      {expandedMonths.has(item.month) && (
+        <FlatList
+          data={monthlyAbsences[item.month].details}
+          renderItem={renderDetailItem}
+          keyExtractor={(item, index) => index.toString()}
+        />
+      )}
+    </View>
+  );
+
+  const renderDetailItem = ({ item }) => (
+    <View style={styles.detailItem}>
+      <Text style={styles.detailText}>Date début: {item.datedeb}</Text>
+      <Text style={styles.detailText}>Date fin: {item.datefin}</Text>
+      <Text style={styles.detailText}>Durée: {item.duree} jours</Text>
+    </View>
+  );
+
+  const monthlyAbsenceData = Object.keys(monthlyAbsences).map(month => ({
+    month: parseInt(month, 10),
+    totalDays: monthlyAbsences[month].total
+  }));
+
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>Suivi des absences</Text>
-      <View style={styles.absenceContainer}>
-        <Text style={styles.absenceLabel}>Absences cette semaine:</Text>
-        <Text style={styles.absenceCount}>{weeklyAbsences}</Text>
-      </View>
-      <View style={styles.absenceContainer}>
-        <Text style={styles.absenceLabel}>Absences ce mois-ci:</Text>
-        <Text style={styles.absenceCount}>{monthlyAbsences}</Text>
-      </View>
-      <View style={styles.absenceContainer}>
-        <Text style={styles.absenceLabel}>Absences ce trimestre:</Text>
-        <Text style={styles.absenceCount}>{quarterlyAbsences}</Text>
-      </View>
-      <View style={styles.absenceContainer}>
-        <Text style={styles.absenceLabel}>Absences cette année:</Text>
-        <Text style={styles.absenceCount}>{yearlyAbsences}</Text>
-      </View>
-    </ScrollView>
+    <View style={styles.container}>
+      {loading ? (
+        <ActivityIndicator size="large" color="#0000ff" />
+      ) : (
+        <>
+          <Text style={styles.headerText}>Résumé des absences par mois :</Text>
+
+          {noDemandesMessage ? (
+            <Text style={styles.noDemandesMessage}>{noDemandesMessage}</Text>
+          ) : (
+            <FlatList
+              data={monthlyAbsenceData}
+              renderItem={renderItem}
+              keyExtractor={(item) => item.month.toString()}
+            />
+          )}
+        </>
+      )}
+    </View>
   );
 };
 
@@ -76,29 +143,64 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f8f8f8',
+    backgroundColor: '#f4f4f4',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  absenceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 10,
+  item: {
+    padding: 15,
+    marginVertical: 8,
+    marginHorizontal: 16,
     backgroundColor: '#fff',
-    marginBottom: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
     elevation: 2,
   },
-  absenceLabel: {
-    fontSize: 18,
+  detailItem: {
+    padding: 10,
+    marginVertical: 4,
+    marginHorizontal: 16,
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    borderColor: '#ddd',
+    borderWidth: 1,
   },
-  absenceCount: {
-    fontSize: 18,
+  headerText: {
+    fontSize: 22,
     fontWeight: 'bold',
+    color: '#4b67a1',
+  },
+  monthText: {
+    fontSize: 18,
+    color: "#1D4B8F",
+    marginBottom: 4,
+  },
+  totalDaysText: {
+    fontSize: 14,
+    color: '#555',
+  },
+  toggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  toggleButtonText: {
+    fontSize: 14,
+    color: 'orange',
+    marginLeft: 5,
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  noDemandesMessage: {
+    fontSize: 16,
+    color: 'red',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 20,
   },
 });
 
-export default AbsenceTracker;
+export default AbsencePage;

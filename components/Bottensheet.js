@@ -3,15 +3,18 @@ import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ScrollView, Swi
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import Icon from 'react-native-vector-icons/AntDesign';
 import * as ImagePicker from 'expo-image-picker';
-
+import Apimaneger from '../Api/Apimanager';
 import { FontAwesome } from '@expo/vector-icons';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { useNavigation } from 'expo-router';
 
 const Bottensheet = forwardRef((props, ref) => {
   const snapPoints = useMemo(() => ['25%', '90%'], []);
   const defaultImage = require('../assets/PROF.jpg');
   const [file, setFile] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
-
+  const { userDetails } = props;
+  const navigation = useNavigation();
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -20,17 +23,50 @@ const Bottensheet = forwardRef((props, ref) => {
         'Permission refusée',
         "Désolé, nous avons besoin de l'autorisation d'accéder à votre bibliothèque de photos pour charger des images."
       );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      if (result.assets && result.assets.length > 0) {
+        const selectedImageUri = result.assets[0].uri;
+        setFile(selectedImageUri);
+
+        // Appeler la fonction d'upload
+        uploadImage(selectedImageUri);
+      } else {
+        console.log('No assets found in result');
+      }
     } else {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
+      console.log('Image selection was cancelled');
+    }
+  };
+
+  const uploadImage = async (imageUri) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: imageUri,
+        name: 'profile.jpg',
+        type: 'image/jpeg'
       });
 
-      if (!result.cancelled) {
-        setFile(result.uri);
+      const response = await Apimaneger.post('api/v1/media_objects', formData);
+
+      if (response.status === 201) {
+        console.log('Image uploaded successfully:', response.data.contentUrl);
+        // Utiliser l'URL retournée pour faire d'autres opérations si nécessaire
+      } else {
+        console.log('Failed to upload image:', response.status);
       }
+    } catch (error) {
+      console.error('Upload failed:', error);
     }
   };
 
@@ -62,45 +98,34 @@ const Bottensheet = forwardRef((props, ref) => {
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
-          <Text style={dynamicStyles.name}>foulen ben foulen</Text>
-          <Text style={dynamicStyles.note}>Laisser une note</Text>
+          <Text style={dynamicStyles.name}>{userDetails ? userDetails.username : 'Nom utilisateur'}</Text>
+          <Text style={dynamicStyles.note}>{userDetails ? userDetails.email : 'email@example.com'}</Text>
         </View>
         <ScrollView style={dynamicStyles.scrollView}>
           <TouchableOpacity style={dynamicStyles.option} onPress={toggleDarkMode}>
             <Text style={dynamicStyles.optionText}>Mode sombre</Text>
             <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
           </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="exchange" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Changer de compte</Text>
-          </TouchableOpacity>
+      
           <View style={dynamicStyles.option}>
             <Text style={dynamicStyles.optionText}>Statut En ligne</Text>
             <Text style={dynamicStyles.optionActive}>Activé</Text>
           </View>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="universal-access" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Accessibilité</Text>
+          <TouchableOpacity style={dynamicStyles.option} onPress={() => navigation.navigate('HelpPage')}>
+          <FontAwesome5 name="question-circle"    size={24} color="black" />
+            <Text style={dynamicStyles.optionText}>Aide</Text>
           </TouchableOpacity>
           <TouchableOpacity style={dynamicStyles.option}>
             <FontAwesome name="lock" size={24} color="black" />
             <Text style={dynamicStyles.optionText}>Confidentialité et sécurité</Text>
           </TouchableOpacity>
           <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="users" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Supervision parentale</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="dashboard" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Consulter le tableau de bord parental</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="user-circle" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Avatar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
             <FontAwesome name="bell" size={24} color="black" />
             <Text style={dynamicStyles.optionText}>Notifications</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={dynamicStyles.option}>
+          <FontAwesome5 name="info-circle"  size={24} color="black" />
+            <Text style={dynamicStyles.optionText}>À propos de l'application</Text>
           </TouchableOpacity>
         </ScrollView>
       </BottomSheetView>

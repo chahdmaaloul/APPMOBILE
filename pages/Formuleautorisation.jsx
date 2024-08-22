@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useContext ,useEffect} from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView ,KeyboardAvoidingView , Platform} from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
@@ -7,6 +7,8 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
 import 'moment/locale/fr';
+import Apimaneger from '../Api/Apimanager';
+import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
@@ -20,19 +22,39 @@ const validationSchema = Yup.object().shape({
     .min(Yup.ref('dateDepart'), 'La date de retour doit être après la date de départ'),
   heureDepart: Yup.string().required("L'heure de départ est requise"),
   heureRetour: Yup.string().required("L'heure de retour est requise"),
-  motif: Yup.string().required('Le motif est requis'),
+ 
 });
 
 const DemandeAutorisation = () => {
   const navigation = useNavigation();
+  const { user } = useContext(UserContext);
   const [dateDepart, setDateDepart] = useState(new Date());
   const [dateRetour, setDateRetour] = useState(new Date());
   const [heureDepart, setHeureDepart] = useState('');
   const [heureRetour, setHeureRetour] = useState('');
   const [showDateDepart, setShowDateDepart] = useState(false);
   const [showDateRetour, setShowDateRetour] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showTimePickerDepart, setShowTimePickerDepart] = useState(false);
+  const [showTimePickerRetour, setShowTimePickerRetour] = useState(false);
+  const [reference, setReference] = useState('');
 
+  useEffect(() => {
+    const fetchReference = async () => {
+      try {
+        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DA?page=1');
+        const data = response.data;
+        if (data.length > 0 && data[0]['']) {
+          setReference(data[0]['']); // Remplir la référence automatiquement
+        } else {
+          console.error('Aucune référence trouvée dans la réponse.');
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la référence:', error);
+      }
+    };
+
+    fetchReference();
+  }, []);
   const onChangeDateDepart = (event, selectedDate) => {
     const currentDate = selectedDate || dateDepart;
     setShowDateDepart(false);
@@ -45,20 +67,80 @@ const DemandeAutorisation = () => {
     setDateRetour(currentDate);
   };
 
-  const onChangeHeureDepart = (selectedTime) => {
-    setShowTimePicker(false);
-    setHeureDepart(selectedTime);
+  const onChangeHeureDepart = (event, selectedTime) => {
+    const formattedTime = moment(selectedTime).format('HH:mm');
+    setShowTimePickerDepart(false);
+    setHeureDepart(formattedTime);
   };
 
-  const onChangeHeureRetour = (selectedTime) => {
-    setShowTimePicker(false);
-    setHeureRetour(selectedTime);
+  const onChangeHeureRetour = (event, selectedTime) => {
+    const formattedTime = moment(selectedTime).format('HH:mm');
+    setShowTimePickerRetour(false);
+    setHeureRetour(formattedTime);
+  };
+
+  const handleSubmitForm = async (values, { resetForm }) => {
+    const diffTime = Math.abs(dateRetour - dateDepart);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    let demande = {
+      typegrh: 'DA',
+      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      des: values.motif,
+      duree: diffDays.toString(),
+      datedeb: dateDepart.toISOString(),
+      datefin: dateRetour.toISOString(),
+      heurdeb: heureDepart.toString(),
+      heurfin: heureRetour.toString(),
+      datel: new Date().toISOString(),
+      datec: new Date().toISOString(),
+      categorie: values.service,
+     etatp:"",
+      ref: reference,
+    };
+
+    try {
+      const response = await Apimaneger.post('/api/v1/grhs', removeEmptyFields(demande), {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      if (response.status === 201) {
+        console.log('Demande envoyée avec succès', response.data);
+        resetForm();
+        setDateDepart(new Date());
+        setDateRetour(new Date());
+        setHeureDepart('');
+        setHeureRetour('');
+        navigation.goBack();
+      } else {
+        console.log("Erreur lors de l'envoi de la demande", response.status);
+      }
+    } catch (error) {
+      if (error.response) {
+        console.error("Erreur lors de l'envoi de la demande:", error.response.data);
+      } else if (error.request) {
+        console.error("Erreur lors de l'envoi de la demande:", error.request);
+      } else {
+        console.error("Erreur lors de l'envoi de la demande:", error.message);
+      }
+    }
+  };
+
+  const removeEmptyFields = (obj) => {
+    return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== ''));
   };
 
   return (
+    <KeyboardAvoidingView
+    style={styles.container}
+    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    keyboardVerticalOffset={1}
+  >
     <Formik
       initialValues={{
-        employe: '',
+       
+        employe: user ? user.ematricule : '',
         service: '',
         dateDepart: '',
         dateRetour: '',
@@ -67,10 +149,7 @@ const DemandeAutorisation = () => {
         motif: '',
       }}
       validationSchema={validationSchema}
-      onSubmit={(values, { resetForm }) => {
-        console.log('Form Values:', values);
-        resetForm(); // Reset form after submission
-      }}
+      onSubmit={handleSubmitForm}
     >
       {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>
@@ -95,21 +174,38 @@ const DemandeAutorisation = () => {
           <View style={styles.bottomHalf}>
             <ScrollView style={styles.scrollView}>
               <View style={styles.formContainer}>
+              <View style={styles.formGroup}>
+                  
+                  <Text style={styles.label}>Référence</Text>
+                  <View style={styles.inputContainer}>
+                    <Icon name="tag" size={20} color="#999" style={styles.icon} />
+                    <TextInput
+                      style={styles.input}
+                      value={reference}
+                      placeholder="Référence"
+                      placeholderTextColor="#999"
+                      editable={false} // Non éditable
+                    />
+                  </View>
+                  {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}
+                  </View>
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Employé</Text>
+                  <Text style={styles.label}>Matricule employé</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="user" size={20} color="#999" style={styles.icon} />
                     <TextInput
-                      style={styles.input}
-                      value={values.employe}
-                      onChangeText={handleChange('employe')}
-                      onBlur={handleBlur('employe')}
-                      placeholder="Nom de l'employé"
-                      placeholderTextColor="#999"
-                    />
+                    style={styles.input}
+                    value={values.employe}
+                    onChangeText={handleChange('employe')}
+                    onBlur={handleBlur('employe')}
+                    placeholder="Nom d'utilisateur"
+                    placeholderTextColor="#999"
+                    editable={false}
+                  />
                   </View>
                   {touched.employe && errors.employe && <Text style={styles.errorText}>{errors.employe}</Text>}
                 </View>
+                
 
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Service</Text>
@@ -149,27 +245,18 @@ const DemandeAutorisation = () => {
                   </View>
                   <View style={styles.dateTimeContainer}>
                     <Text style={styles.label}>Heure de départ</Text>
-                    <View style={styles.inputContainer}>
+                    <TouchableOpacity onPress={() => setShowTimePickerDepart(true)} style={styles.datePickerButton}>
                       <Icon name="clock-o" size={20} color="#999" style={styles.icon} />
-                      <TextInput
-                        style={styles.input}
-                        value={values.heureDepart}
-                        onChangeText={handleChange('heureDepart')}
-                        onBlur={handleBlur('heureDepart')}
-                        placeholder="Heure de départ"
-                        placeholderTextColor="#999"
-                        onFocus={() => setShowTimePicker(true)}
-                      />
-                    </View>
-                    {showTimePicker && (
+                      <Text style={styles.dateText}>{heureDepart || 'HH:mm'}</Text>
+                    </TouchableOpacity>
+                    {showTimePickerDepart && (
                       <DateTimePicker
                         value={dateDepart}
                         mode="time"
                         display="default"
                         onChange={(event, selectedTime) => {
-                          const formattedTime = moment(selectedTime).format('HH:mm');
-                          onChangeHeureDepart(formattedTime);
-                          setFieldValue('heureDepart', formattedTime);
+                          onChangeHeureDepart(event, selectedTime);
+                          setFieldValue('heureDepart', moment(selectedTime).format('HH:mm'));
                         }}
                       />
                     )}
@@ -199,27 +286,18 @@ const DemandeAutorisation = () => {
                   </View>
                   <View style={styles.dateTimeContainer}>
                     <Text style={styles.label}>Heure de retour</Text>
-                    <View style={styles.inputContainer}>
+                    <TouchableOpacity onPress={() => setShowTimePickerRetour(true)} style={styles.datePickerButton}>
                       <Icon name="clock-o" size={20} color="#999" style={styles.icon} />
-                      <TextInput
-                        style={styles.input}
-                        value={values.heureRetour}
-                        onChangeText={handleChange('heureRetour')}
-                        onBlur={handleBlur('heureRetour')}
-                        placeholder="Heure de retour"
-                        placeholderTextColor="#999"
-                        onFocus={() => setShowTimePicker(true)}
-                      />
-                    </View>
-                    {showTimePicker && (
+                      <Text style={styles.dateText}>{heureRetour || 'HH:mm'}</Text>
+                    </TouchableOpacity>
+                    {showTimePickerRetour && (
                       <DateTimePicker
                         value={dateRetour}
                         mode="time"
                         display="default"
                         onChange={(event, selectedTime) => {
-                          const formattedTime = moment(selectedTime).format('HH:mm');
-                          onChangeHeureRetour(formattedTime);
-                          setFieldValue('heureRetour', formattedTime);
+                          onChangeHeureRetour(event, selectedTime);
+                          setFieldValue('heureRetour', moment(selectedTime).format('HH:mm'));
                         }}
                       />
                     )}
@@ -230,9 +308,9 @@ const DemandeAutorisation = () => {
                 <View style={styles.formGroup}>
                   <Text style={styles.label}>Motif</Text>
                   <View style={styles.inputContainer}>
-                    <Icon name="comment" size={20} color="#999" style={styles.icon} />
+                    <Icon name="pencil" size={20} color="#999" style={styles.icon} />
                     <TextInput
-                      style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+                       style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
                       value={values.motif}
                       onChangeText={handleChange('motif')}
                       onBlur={handleBlur('motif')}
@@ -245,8 +323,11 @@ const DemandeAutorisation = () => {
                   {touched.motif && errors.motif && <Text style={styles.errorText}>{errors.motif}</Text>}
                 </View>
 
-                <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-                  <Text style={styles.buttonText}>Enregistrer</Text>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.buttonText}>Envoyer</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -254,13 +335,13 @@ const DemandeAutorisation = () => {
         </View>
       )}
     </Formik>
+    </KeyboardAvoidingView>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
   },
   topHalf: {
     flexDirection: 'row',
@@ -276,6 +357,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     paddingVertical: 30,
+    borderBottomRightRadius :40,
+    borderBottomLeftRadius :40,
   },
   title: {
     flex: 1,
@@ -347,7 +430,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   button: {
-    backgroundColor: '#4b67a1',
+    backgroundColor: '#006AB6',
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',
