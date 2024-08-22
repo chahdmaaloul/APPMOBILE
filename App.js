@@ -23,7 +23,7 @@ import Autorisation from './pages/DemandeAutorisation';
 import SplashScreen from './screnns/SplashScreen';
 import ContactsScreen from './pages/equipe';
 import AcceptedRejectedRequests from './pages/Voirplus';
-import HelpPage from './pages/aide';
+
 const Stack = createStackNavigator();
 
 export default function App() {
@@ -51,7 +51,7 @@ export default function App() {
         <Stack.Screen name="decompl" component={Complement} options={{ title: 'decompl' }} />
         <Stack.Screen name="equipe" component={ContactsScreen} options={{ title: 'equipe' }} />
         <Stack.Screen name="voir" component={AcceptedRejectedRequests} options={{ title: 'voir' }} />
-        <Stack.Screen name="HelpPage" component={HelpPage}  options={{ title: 'HelpPage' }} />
+       
       </Stack.Navigator>
       </DarkModeProvider>
     </NavigationContainer>

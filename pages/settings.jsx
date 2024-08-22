@@ -8,7 +8,6 @@ export default function SettingsScreen() {
     darkMode: false,
     playInBackground: false,
     onlyWifi: true,
-    location: true,
   });
 
   const toggleSwitch = (key) => {
@@ -21,28 +20,21 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        {/* Profil */}
+     
+
         {/* Paramètres */}
         <View style={styles.settingsContainer}>
           <View style={styles.settingItem}>
             <FontAwesome5 name="globe" size={24} color="orange" />
-            <Text style={styles.settingText}>Langue</Text>
-            <Text style={styles.settingTextValue}>Français</Text>
+            <Text style={styles.settingText}>Language</Text>
+            <Text style={styles.settingTextValue}>English</Text>
             <AntDesign name="right" size={20} color="gray" />
-          </View>
-
-          {/* Localisation */}
-          <View style={styles.settingItem}>
-            <FontAwesome5 name="map-marker-alt" size={24} color="orange"/>
-            <Text style={styles.settingText}>Localisation</Text>
-            <Switch
-              value={isEnabled.location}
-              onValueChange={() => toggleSwitch('location')}
-            />
           </View>
 
           <View style={styles.settingItem}>
             <FontAwesome5 name="lock" size={24} color="orange"/>
-            <Text style={styles.settingText}>Autorisations</Text>
+            <Text style={styles.settingText}>Permissions</Text>
             <Switch
               value={isEnabled.permissions}
               onValueChange={() => toggleSwitch('permissions')}
@@ -51,18 +43,25 @@ export default function SettingsScreen() {
 
           <View style={styles.settingItem}>
             <FontAwesome5 name="moon" size={24} color="orange"/>
-            <Text style={styles.settingText}>Mode sombre</Text>
+            <Text style={styles.settingText}>Dark Mode</Text>
             <Switch
               value={isEnabled.darkMode}
               onValueChange={() => toggleSwitch('darkMode')}
             />
           </View>
 
-          
+          <View style={styles.settingItem}>
+            <FontAwesome5 name="play-circle" size={24} color="orange"/>
+            <Text style={styles.settingText}>Play in Background</Text>
+            <Switch
+              value={isEnabled.playInBackground}
+              onValueChange={() => toggleSwitch('playInBackground')}
+            />
+          </View>
 
           <View style={styles.settingItem}>
             <FontAwesome5 name="wifi" size={24} color="orange" />
-            <Text style={styles.settingText}>Wi-Fi uniquement</Text>
+            <Text style={styles.settingText}>Only Wi-Fi</Text>
             <Switch
               value={isEnabled.onlyWifi}
               onValueChange={() => toggleSwitch('onlyWifi')}
@@ -77,13 +76,13 @@ export default function SettingsScreen() {
 
           <View style={styles.settingItem}>
             <FontAwesome5 name="info-circle" size={24} color="orange" />
-            <Text style={styles.settingText}>À propos de l'application</Text>
+            <Text style={styles.settingText}>About Application</Text>
             <AntDesign name="right" size={20} color="gray" />
           </View>
 
           <View style={styles.settingItem}>
             <FontAwesome5 name="question-circle" size={24} color="orange" />
-            <Text style={styles.settingText}>Aide</Text>
+            <Text style={styles.settingText}>Help</Text>
             <AntDesign name="right" size={20} color="gray" />
           </View>
         </View>
@@ -99,6 +98,27 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 20,
+  },
+  profileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  profileImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  profileTextContainer: {
+    marginLeft: 15,
+  },
+  profileName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  profileRole: {
+    fontSize: 16,
+    color: 'gray',
   },
   settingsContainer: {
     backgroundColor: 'white',

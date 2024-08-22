@@ -5,8 +5,6 @@ import Icon from 'react-native-vector-icons/AntDesign';
 import * as ImagePicker from 'expo-image-picker';
 import Apimaneger from '../Api/Apimanager';
 import { FontAwesome } from '@expo/vector-icons';
-import { FontAwesome5 } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
 
 const Bottensheet = forwardRef((props, ref) => {
   const snapPoints = useMemo(() => ['25%', '90%'], []);
@@ -14,7 +12,7 @@ const Bottensheet = forwardRef((props, ref) => {
   const [file, setFile] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { userDetails } = props;
-  const navigation = useNavigation();
+
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
@@ -106,14 +104,17 @@ const Bottensheet = forwardRef((props, ref) => {
             <Text style={dynamicStyles.optionText}>Mode sombre</Text>
             <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
           </TouchableOpacity>
-      
+          <TouchableOpacity style={dynamicStyles.option}>
+            <FontAwesome name="exchange" size={24} color="black" />
+            <Text style={dynamicStyles.optionText}>Changer de compte</Text>
+          </TouchableOpacity>
           <View style={dynamicStyles.option}>
             <Text style={dynamicStyles.optionText}>Statut En ligne</Text>
             <Text style={dynamicStyles.optionActive}>Activé</Text>
           </View>
-          <TouchableOpacity style={dynamicStyles.option} onPress={() => navigation.navigate('HelpPage')}>
-          <FontAwesome5 name="question-circle"    size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Aide</Text>
+          <TouchableOpacity style={dynamicStyles.option}>
+            <FontAwesome name="universal-access" size={24} color="black" />
+            <Text style={dynamicStyles.optionText}>Accessibilité</Text>
           </TouchableOpacity>
           <TouchableOpacity style={dynamicStyles.option}>
             <FontAwesome name="lock" size={24} color="black" />
@@ -122,10 +123,6 @@ const Bottensheet = forwardRef((props, ref) => {
           <TouchableOpacity style={dynamicStyles.option}>
             <FontAwesome name="bell" size={24} color="black" />
             <Text style={dynamicStyles.optionText}>Notifications</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-          <FontAwesome5 name="info-circle"  size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>À propos de l'application</Text>
           </TouchableOpacity>
         </ScrollView>
       </BottomSheetView>
