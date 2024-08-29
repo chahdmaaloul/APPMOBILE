@@ -128,7 +128,7 @@ const DemandeConge = () => {
       }}
       validationSchema={validationSchema}
       onSubmit={handleSubmitForm}
-      enableReinitialize={true}  // Ajouter cette ligne pour réinitialiser les valeurs lors de la récupération de la référence
+      enableReinitialize={true}  
     >
       {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>

@@ -24,7 +24,7 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import Apimaneger from '../Api/Apimanager';
 import AbsencePage from './Absence';
 
-const { width: screenWidth } = Dimensions.get('window'); // Get screen width for carousel
+const { width: screenWidth } = Dimensions.get('window'); 
 
 const carouselItems = [
   { title: 'Demande de congé', icon: 'calendar', backgroundColor: '#F15A24', route: 'Demande de conge' },
@@ -81,7 +81,7 @@ const ListItem = ({ item }) => {
           </View>
         </View>
         <TouchableOpacity style={styles.cardButton}>
-          <FontAwesome name="arrow-right" size={24} color="#777" />
+          <FontAwesome name="plus" size={24} color="#777" />
         </TouchableOpacity>
       </View>
     </Animated.View>
@@ -183,7 +183,7 @@ function PageHome({ navigation }) {
         <FlatList
   data={items}
   renderItem={({ item }) => <ListItem item={item} />}
-  keyExtractor={(item) => item.title} // Assurez-vous que chaque élément a une clé unique
+  keyExtractor={(item) => item.title} 
   contentContainerStyle={styles.list}
 />
 
@@ -193,7 +193,7 @@ function PageHome({ navigation }) {
   );
 }
 
-const Drawer = createDrawerNavigator(); // Define Drawer here
+const Drawer = createDrawerNavigator(); //  Drawer here
 const CustomDrawerContent = (props) => {
   const modalRef = useRef(null);
 
@@ -285,10 +285,10 @@ function HomeScreen() {
       <Drawer.Navigator drawerContent={(props) => <CustomDrawerContent {...props} />}
        screenOptions={{
         drawerStyle: {
-          width: 240, // Vous pouvez ajuster la largeur du tiroir ici
+          width: 275, 
         },
-        drawerType: 'slide', // Utiliser le type de tiroir souhaité
-        overlayColor: 'rgba(0, 0, 0, 0.5)', // Couleur d'overlay pour l'ouverture du tiroir
+        drawerType: 'slide', 
+        overlayColor: 'rgba(0, 0, 0, 0.5)', 
       }}
     >
         <Drawer.Screen
@@ -302,19 +302,19 @@ function HomeScreen() {
             headerTitle: (props) => <LogoTitle {...props} />,
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
             headerStyle: {
-              borderBottomWidth: 0, // Enlevez la bordure de l'en-tête
-              backgroundColor: '#f5f5f5', // Utilisez la même couleur que votre fond d'écran
+              borderBottomWidth: 0, 
+              backgroundColor: '#f5f5f5', 
             },
             
           }}
         />
         <Drawer.Screen
-    name="Demande de conge"  // Assurez-vous que le nom est correct
+    name="Demande de conge"  
     component={Conge}
     options={{
       drawerLabel: 'Demande de congé',
@@ -324,7 +324,7 @@ function HomeScreen() {
             
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -345,7 +345,7 @@ function HomeScreen() {
           
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -366,7 +366,7 @@ function HomeScreen() {
            
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -387,7 +387,7 @@ function HomeScreen() {
            
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -408,7 +408,7 @@ function HomeScreen() {
             
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -429,7 +429,7 @@ function HomeScreen() {
           
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -439,27 +439,7 @@ function HomeScreen() {
             },
           }}
         />
-        <Drawer.Screen
-          name="Paramètres"
-          component={SettingsScreen}
-          options={{
-            drawerLabel: 'Paramètres',
-            drawerIcon: ({ color, size }) => (
-              <AntDesign name="setting" size={size} color={color} />
-            ),
-          
-            headerTitleAlign: 'center',
-            headerTitleStyle: {
-              fontSize: 20,
-              fontWeight: 'bold',
-              color: '#4b67a1',
-            },
-            headerStyle: {
-              borderBottomWidth: 0,
-              backgroundColor: '#f5f5f5',
-            },
-          }}
-        />
+        
           {hasManagerRole && (
         <Drawer.Screen
           name="Espace Manager"
@@ -471,7 +451,7 @@ function HomeScreen() {
             ),
             headerTitleAlign: 'center',
             headerTitleStyle: {
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: 'bold',
               color: '#4b67a1',
             },
@@ -492,31 +472,31 @@ const styles = StyleSheet.create({
   
   
   card: {
-    flexDirection: 'row', // Arrange items in a row
-    alignItems: 'center', // Align items vertically centered
+    flexDirection: 'row', 
+    alignItems: 'center', 
     width: '100%',
     borderRadius: 10,
     padding: 15,
     marginBottom: 10,
   },
   cardIcon: {
-    marginRight: 15, // Add some space between the icon and the text
+    marginRight: 15, 
   },
   cardContent: {
-    flexDirection: 'row', // Arrange icon and text in a row
-    alignItems: 'center', // Align items vertically centered
-    flex: 1, // Take up remaining space
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    flex: 1, 
   },
   cardTextContainer: {
-    marginLeft: 15, // Add some space between the icon and the text
+    marginLeft: 15, 
   },
   cardValue: {
-    fontSize: 24, // Make the value text larger
+    fontSize: 24, 
     fontWeight: 'bold',
     color: '#777',
   },
   cardTitle: {
-    fontSize: 16, // Adjust the size of the title text
+    fontSize: 16, 
     color: 'black',
   },
   cardButton: {
@@ -532,7 +512,7 @@ const styles = StyleSheet.create({
       borderBottomLeftRadius: 35,
       borderBottomRightRadius: 35,
   
-      paddingVertical: 20, // Augmenter la hauteur de la section
+      paddingVertical: 20, 
     },
     headerContainer: {
       marginBottom: 20,

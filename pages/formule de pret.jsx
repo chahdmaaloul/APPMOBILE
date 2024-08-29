@@ -9,7 +9,7 @@ import moment from 'moment';
 import Apimaneger from '../Api/Apimanager';
 import { UserContext } from '../Api/UserContext';
 
-// Définition du schéma de validation avec Yup
+
 const validationSchema = Yup.object().shape({
   employe: Yup.string().required('Le nom de l\'employé est requis'),
   service: Yup.string().required('Le nom du service est requis'),
@@ -22,7 +22,7 @@ const validationSchema = Yup.object().shape({
   remarque: Yup.string(),
 });
 
-// Composant principal pour la demande de prêt
+
 const DemandePret = () => {
   const navigation = useNavigation();
   const { user } = useContext(UserContext);
@@ -39,7 +39,7 @@ const DemandePret = () => {
         const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DP?page=1');
         const data = response.data;
         if (data.length > 0 && data[0]['']) {
-          setReference(data[0]['']); // Remplir la référence automatiquement
+          setReference(data[0]['']); 
         } else {
           console.error('Aucune référence trouvée dans la réponse.');
         }
@@ -69,7 +69,7 @@ const DemandePret = () => {
 
     let demande = {
       typegrh: 'DP',
-      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      codetiers: user.ematricule.toString(), 
       des: values.remarque,
       duree: diffDays.toString(),
       datedeb: dateDebut.toISOString(),

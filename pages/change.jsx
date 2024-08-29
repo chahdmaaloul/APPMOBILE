@@ -47,7 +47,7 @@ const Change = () => {
 
       if (response.status === 200) {
         Alert.alert('Succès', 'Votre mot de passe a été changé avec succès.');
-        navigation.navigate('Login'); // Redirige vers l'écran de connexion ou autre
+        navigation.navigate('Login'); 
       } else {
         Alert.alert('Erreur', 'Une erreur est survenue. Veuillez réessayer.');
       }

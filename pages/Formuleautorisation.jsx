@@ -12,7 +12,7 @@ import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
-// Validation schema using Yup
+
 const validationSchema = Yup.object().shape({
   employe: Yup.string().required("Le nom de l'employé est requis"),
   service: Yup.string().required("Le nom du service est requis"),
@@ -44,7 +44,7 @@ const DemandeAutorisation = () => {
         const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DA?page=1');
         const data = response.data;
         if (data.length > 0 && data[0]['']) {
-          setReference(data[0]['']); // Remplir la référence automatiquement
+          setReference(data[0]['']); 
         } else {
           console.error('Aucune référence trouvée dans la réponse.');
         }
@@ -85,7 +85,7 @@ const DemandeAutorisation = () => {
 
     let demande = {
       typegrh: 'DA',
-      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      codetiers: user.ematricule.toString(), 
       des: values.motif,
       duree: diffDays.toString(),
       datedeb: dateDepart.toISOString(),

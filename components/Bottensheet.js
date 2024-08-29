@@ -1,17 +1,53 @@
-import React, { useMemo, forwardRef, useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Alert, ScrollView, Switch } from 'react-native';
+import React, {
+  useMemo,
+  forwardRef,
+  useState,
+  useRef,
+  useContext,
+  useCallback,
+  useEffect,
+} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import Icon from 'react-native-vector-icons/AntDesign';
 import * as ImagePicker from 'expo-image-picker';
 import Apimaneger from '../Api/Apimanager';
+import { UserContext } from '../Api/UserContext';
+import { useFocusEffect } from '@react-navigation/native';
 import { FontAwesome } from '@expo/vector-icons';
 
 const Bottensheet = forwardRef((props, ref) => {
   const snapPoints = useMemo(() => ['25%', '90%'], []);
   const defaultImage = require('../assets/PROF.jpg');
   const [file, setFile] = useState(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const { userDetails } = props;
+  const [isEditable, setIsEditable] = useState(false);
+  const [headerText, setHeaderText] = useState('Profile');
+  const [modificationInProgress, setModificationInProgress] = useState(false);
+  const [userDetails, setUserDetails] = useState({});
+  const { user } = useContext(UserContext);
+
+  const fetchDemandes = useCallback(async () => {
+    try {
+      const response = await Apimaneger.get(`/api/v1/employees/${user.ematricule}`);
+      setUserDetails(response.data);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des demandes:', error);
+    }
+  }, [user.ematricule]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchDemandes();
+    }, [fetchDemandes])
+  );
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -31,18 +67,10 @@ const Bottensheet = forwardRef((props, ref) => {
       quality: 1,
     });
 
-    if (!result.canceled) {
-      if (result.assets && result.assets.length > 0) {
-        const selectedImageUri = result.assets[0].uri;
-        setFile(selectedImageUri);
-
-        // Appeler la fonction d'upload
-        uploadImage(selectedImageUri);
-      } else {
-        console.log('No assets found in result');
-      }
-    } else {
-      console.log('Image selection was cancelled');
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      const selectedImageUri = result.assets[0].uri;
+      setFile(selectedImageUri);
+      uploadImage(selectedImageUri);
     }
   };
 
@@ -55,11 +83,14 @@ const Bottensheet = forwardRef((props, ref) => {
         type: 'image/jpeg'
       });
 
-      const response = await Apimaneger.post('api/v1/media_objects', formData);
+      const response = await Apimaneger.post('api/v1/media_objects', formData,{
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
 
       if (response.status === 201) {
         console.log('Image uploaded successfully:', response.data.contentUrl);
-        // Utiliser l'URL retournée pour faire d'autres opérations si nécessaire
       } else {
         console.log('Failed to upload image:', response.status);
       }
@@ -68,200 +99,202 @@ const Bottensheet = forwardRef((props, ref) => {
     }
   };
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
-
   const closeBottomSheet = () => {
-    ref.current?.close();
+    if (isEditable) {
+      Alert.alert(
+        'Modification en cours',
+        "Vous n'avez pas terminé la modification. Voulez-vous continuer sans enregistrer ?",
+        [
+          { text: 'Annuler', style: 'cancel' },
+          {
+            text: 'Continuer',
+            onPress: () => {
+              setIsEditable(false);
+              setModificationInProgress(false);
+              ref.current?.close();
+            },
+          },
+        ]
+      );
+    } else {
+      ref.current?.close();
+    }
   };
 
-  const dynamicStyles = isDarkMode ? darkStyles : lightStyles;
+  const toggleEditable = () => {
+    setIsEditable(!isEditable);
+    setHeaderText(isEditable ? 'Profile' : 'Modifier le profil');
+    setModificationInProgress(true);
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  useEffect(() => {
+    // Entrance animation removed
+  }, []);
 
   return (
     <BottomSheetModal ref={ref} index={1} snapPoints={snapPoints}>
-      <BottomSheetView style={dynamicStyles.contentContainer}>
-        <View style={dynamicStyles.header}>
-          <Text style={dynamicStyles.headerText}>Profile</Text>
+      <BottomSheetView style={lightStyles.contentContainer}>
+        <View style={lightStyles.header}>
+          <Text style={lightStyles.headerText}>{headerText}</Text>
           <TouchableOpacity onPress={closeBottomSheet}>
-            <Text style={dynamicStyles.okText}>OK</Text>
+            <Text style={lightStyles.okText}>OK</Text>
           </TouchableOpacity>
         </View>
-        <View style={dynamicStyles.profile}>
+        <View style={lightStyles.profile}>
           <TouchableOpacity onPress={pickImage}>
-            <Image source={file ? { uri: file } : defaultImage} style={dynamicStyles.avatar} />
-            <View style={dynamicStyles.cameraIcon}>
+            <Image source={file ? { uri: file } : defaultImage} style={lightStyles.avatar} />
+            <View style={lightStyles.cameraIcon}>
               <TouchableOpacity onPress={pickImage}>
                 <Icon name="camera" size={24} color="white" />
               </TouchableOpacity>
             </View>
           </TouchableOpacity>
-          <Text style={dynamicStyles.name}>{userDetails ? userDetails.username : 'Nom utilisateur'}</Text>
-          <Text style={dynamicStyles.note}>{userDetails ? userDetails.email : 'email@example.com'}</Text>
         </View>
-        <ScrollView style={dynamicStyles.scrollView}>
-          <TouchableOpacity style={dynamicStyles.option} onPress={toggleDarkMode}>
-            <Text style={dynamicStyles.optionText}>Mode sombre</Text>
-            <Switch value={isDarkMode} onValueChange={toggleDarkMode} />
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="exchange" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Changer de compte</Text>
-          </TouchableOpacity>
-          <View style={dynamicStyles.option}>
-            <Text style={dynamicStyles.optionText}>Statut En ligne</Text>
-            <Text style={dynamicStyles.optionActive}>Activé</Text>
+        <View style={lightStyles.STYLE}>
+          <View style={lightStyles.option}>
+            <Icon name="user" size={24} color="#006AB6" />
+            <View style={lightStyles.textContainer}>
+              <Text style={lightStyles.label}>Nom utilisateur</Text>
+              <TextInput
+                value={user.username}
+                style={lightStyles.value}
+                placeholder="Nom utilisateur"
+                placeholderTextColor="#888"
+                editable={isEditable}
+              />
+            </View>
           </View>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="universal-access" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Accessibilité</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="lock" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Confidentialité et sécurité</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={dynamicStyles.option}>
-            <FontAwesome name="bell" size={24} color="black" />
-            <Text style={dynamicStyles.optionText}>Notifications</Text>
-          </TouchableOpacity>
-        </ScrollView>
+          <View style={lightStyles.option}>
+            <Icon name="mail" size={24} color="#006AB6" />
+            <View style={lightStyles.textContainer}>
+              <Text style={lightStyles.label}>Email</Text>
+              <TextInput
+                value={user.email}
+                style={lightStyles.value}
+                placeholder="Email"
+                placeholderTextColor="#888"
+                keyboardType="email-address"
+                editable={isEditable}
+              />
+            </View>
+          </View>
+          <View style={lightStyles.option}>
+            <Icon name="calendar" size={24} color="#006AB6" />
+            <View style={lightStyles.textContainer}>
+              <Text style={lightStyles.label}>Date de naissance</Text>
+              <TextInput
+                value={formatDate(userDetails.edatenaiss)}
+                style={lightStyles.value}
+                placeholder="Date de naissance"
+                placeholderTextColor="#888"
+                editable={isEditable}
+              />
+            </View>
+          </View>
+          <View style={lightStyles.option}>
+            <Icon name="idcard" size={24} color="#006AB6" />
+            <View style={lightStyles.textContainer}>
+              <Text style={lightStyles.label}>CIN</Text>
+              <TextInput
+                value={userDetails.ecin}
+                style={lightStyles.value}
+                placeholder="CIN"
+                placeholderTextColor="#888"
+                keyboardType="phone-pad"
+                editable={isEditable}
+              />
+            </View>
+          </View>
+          <View style={lightStyles.option}>
+            <FontAwesome name="tv" size={24} color="#006AB6" />
+            <View style={lightStyles.textContainer}>
+              <Text style={lightStyles.label}>Fonction</Text>
+              <TextInput
+                value={userDetails.efonction}
+                style={lightStyles.value}
+                placeholder="Fonction"
+                placeholderTextColor="#888"
+                editable={isEditable}
+              />
+            </View>
+          </View>
+        </View>
       </BottomSheetView>
     </BottomSheetModal>
   );
 });
 
-const commonStyles = {
+const lightStyles = StyleSheet.create({
   contentContainer: {
     flex: 1,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     padding: 16,
   },
   headerText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
   },
   okText: {
-    fontSize: 16,
+    fontSize: 18,
+    color: '#006AB6',
   },
   profile: {
     alignItems: 'center',
-    marginVertical: 20,
+    marginTop: 16,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 160,
+    height: 160,
+    borderRadius: 60, // Ensure the image is circular
+    borderWidth: 3,
+    borderColor: '#006AB6', // Match the border color with icon color
   },
   cameraIcon: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: 'gray',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 50,
     padding: 8,
-    borderRadius: 20,
   },
-  name: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 8,
-  },
-  note: {
-    fontSize: 14,
-    marginTop: 4,
-  },
-  scrollView: {
-    paddingHorizontal: 20,
+  STYLE: {
+    padding: 15,
+    marginTop: 16,
   },
   option: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 10,
-    borderRadius: 10,
+    paddingVertical: 20,
+    paddingHorizontal: 30,
+    borderRadius: 20,
     marginBottom: 10,
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
+    backgroundColor: '#f0f0f0',
   },
-  optionText: {
+  textContainer: {
+    flex: 1,
+    marginLeft: 15,
+  },
+  label: {
     fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
   },
-  optionActive: {
+  value: {
     fontSize: 16,
-  },
-};
-
-const lightStyles = StyleSheet.create({
-  ...commonStyles,
-  contentContainer: {
-    ...commonStyles.contentContainer,
-    backgroundColor: 'white',
-  },
-  headerText: {
-    ...commonStyles.headerText,
-    color: 'black',
-  },
-  okText: {
-    ...commonStyles.okText,
-    color: '#007AFF',
-  },
-  name: {
-    ...commonStyles.name,
-    color: 'black',
-  },
-  note: {
-    ...commonStyles.note,
-    color: '#007AFF',
-  },
-  option: {
-    ...commonStyles.option,
-    backgroundColor: '#f2f2f2',
-  },
-  optionText: {
-    ...commonStyles.optionText,
-    color: 'black',
-  },
-  optionActive: {
-    ...commonStyles.optionActive,
-    color: '#4cd964',
-  },
-});
-
-const darkStyles = StyleSheet.create({
-  ...commonStyles,
-  contentContainer: {
-    ...commonStyles.contentContainer,
-    backgroundColor: '#333',
-  },
-  headerText: {
-    ...commonStyles.headerText,
-    color: 'white',
-  },
-  okText: {
-    ...commonStyles.okText,
-    color: '#007AFF',
-  },
-  name: {
-    ...commonStyles.name,
-    color: 'white',
-  },
-  note: {
-    ...commonStyles.note,
-    color: '#007AFF',
-  },
-  option: {
-    ...commonStyles.option,
-    backgroundColor: '#444',
-  },
-  optionText: {
-    ...commonStyles.optionText,
-    color: 'white',
-  },
-  optionActive: {
-    ...commonStyles.optionActive,
-    color: '#4cd964',
+    color: '#000',
   },
 });
 

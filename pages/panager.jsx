@@ -18,7 +18,7 @@ export default function ManagerDashboard() {
       try {
         setLoading(true);
         const response = await Apimaneger.get(`api/v1/grhs`);
-        console.log('Données récupérées:', response.data); // Vérifiez la structure des données ici
+        console.log('Données récupérées:', response.data); 
         setDemandes(response.data);
       } catch (error) {
         console.error('Error fetching demandes:', error);
@@ -38,24 +38,24 @@ export default function ManagerDashboard() {
   }, [demandes, filter]);
 
   const filteredDemandes = demandes.filter(demande => {
-    if (!demande.typegrh) return false; // Vérifiez si typegrh existe
-    if (filter === 'tout') return demande.etatbp === null || demande.etatbp === undefined; // Filtrer pour 'tout' pour n'afficher que les demandes en attente
-    return demande.typegrh.trim() === filter && (demande.etatbp === null || demande.etatbp === undefined); // Filtrer par typegrh et demandes en attente
+    if (!demande.typegrh) return false; 
+    if (filter === 'tout') return demande.etatbp === null || demande.etatbp === undefined; 
+    return demande.typegrh.trim() === filter && (demande.etatbp === null || demande.etatbp === undefined); 
   });
 
   const formatDemandeDetails = (demande) => {
-    let etatText = 'En attente'; // Valeur par défaut
-    let etatStyle = styles.pending; // Style par défaut
-    let etatIcon = 'hourglass-half'; // Icône par défaut
+    let etatText = 'En attente'; 
+    let etatStyle = styles.pending; 
+    let etatIcon = 'hourglass-half'; 
 
     if (demande.etatbp === true) {
       etatText = 'Accepté';
       etatStyle = styles.accepted;
-      etatIcon = 'check-circle'; // Icône pour accepté
+      etatIcon = 'check-circle'; 
     } else if (demande.etatbp === false) {
       etatText = 'Refusé';
       etatStyle = styles.rejected;
-      etatIcon = 'times-circle'; // Icône pour refusé
+      etatIcon = 'times-circle'; 
     }
 
     return (

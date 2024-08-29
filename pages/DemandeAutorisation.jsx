@@ -280,6 +280,7 @@ const styles = StyleSheet.create({
     color: 'gray',
   },
   calendarLink: {
+    marginTop :10,
     width: 100,
     backgroundColor: 'orange',
     alignItems: 'center',

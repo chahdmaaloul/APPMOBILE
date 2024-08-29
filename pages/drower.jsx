@@ -10,7 +10,7 @@ function CustomDrawerContent(props) {
     <DrawerContentScrollView {...props}>
       <View style={styles.header}>
         <Image
-          source={{ uri: 'https://example.com/user_image.png' }} // Remplacez par le lien de l'image de l'utilisateur
+          source={{ uri: 'https://example.com/user_image.png' }} 
           style={styles.profileImage}
         />
         <Text style={styles.userName}>Milan Shrestha</Text>

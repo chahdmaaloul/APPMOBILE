@@ -9,10 +9,10 @@ export const get_users = async () => {
 
   try {
     const response = await Apimanager.get("/api/v1/crm_users");
-    return response.data; // Retourne les données de la réponse
+    return response.data; 
   } catch (error) {
     if (error.response) {
-      return error.response.data; // Retourne les données d'erreur de la réponse
+      return error.response.data; 
     } else {
       console.error("Erreur de connexion :", error);
       throw error;

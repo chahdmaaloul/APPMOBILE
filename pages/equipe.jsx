@@ -3,13 +3,13 @@ import { View, Text, SectionList, TextInput, Image, StyleSheet, TouchableOpacity
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/AntDesign';
 import Apimaneger from '../Api/Apimanager';
-const defaultImage = require('../assets/PROF.jpg'); // Image par défaut
+const defaultImage = require('../assets/PROF.jpg'); 
 
 const ContactsScreen = ({ navigation }) => {
   const [employees, setEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [refreshing, setRefreshing] = useState(false); // Ajouter l'état refreshing
+  const [refreshing, setRefreshing] = useState(false); 
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -22,14 +22,14 @@ const ContactsScreen = ({ navigation }) => {
 
   const fetchEmployees = async () => {
     try {
-      setRefreshing(true); // Commencez le rafraîchissement
+      setRefreshing(true); 
       const response = await Apimaneger.get('/api/v1/crm_users');
       setEmployees(response.data);
       setFilteredEmployees(sortEmployeesAlphabetically(response.data));
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
-      setRefreshing(false); // Terminer le rafraîchissement
+      setRefreshing(false);
     }
   };
 
@@ -109,8 +109,8 @@ const ContactsScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
-        onRefresh={fetchEmployees} // Relier la fonction de rafraîchissement
-        refreshing={refreshing} // Utiliser l'état refreshing pour indiquer le statut
+        onRefresh={fetchEmployees} 
+        refreshing={refreshing} 
         style={{ flex: 1 }}
       />
     </View>

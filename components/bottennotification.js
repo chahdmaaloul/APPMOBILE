@@ -5,7 +5,7 @@ import Apimaneger from '../Api/Apimanager';
 import { useUser } from '../Api/UserContext';
 
 const NotificationSheet = forwardRef((props, ref) => {
-  const { user } = useUser(); // Obtenez l'utilisateur du contexte
+  const { user } = useUser(); 
   const [notifications, setNotifications] = useState([]);
   const snapPoints = useMemo(() => ['25%', '90%'], []);
 
@@ -13,7 +13,7 @@ const NotificationSheet = forwardRef((props, ref) => {
     ref.current?.close();
   };
 
-  // Fonction pour obtenir les notifications
+
   const fetchNotifications = async () => {
     if (!user || !user.ematricule) {
       console.error('Matricule de l\'utilisateur non trouvé');
@@ -30,10 +30,10 @@ const NotificationSheet = forwardRef((props, ref) => {
     }
   };
 
-  // Charger les notifications lors du premier rendu
+ 
   useEffect(() => {
     fetchNotifications();
-  }, [user]); // Dépendance ajoutée ici pour recharger en cas de changement d'utilisateur
+  }, [user]); 
 
   const renderNotification = ({ item }) => (
     <View style={styles.notification}>

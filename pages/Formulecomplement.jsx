@@ -12,7 +12,7 @@ import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
-// Validation schema using Yup
+
 const validationSchema = Yup.object().shape({
   employe: Yup.string().required("Le nom de l'employé est requis"),
   service: Yup.string().required("Le nom du service est requis"),
@@ -36,7 +36,7 @@ const DemandeComplement = () => {
         const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DCO?page=1');
         const data = response.data;
         if (data.length > 0 && data[0]['']) {
-          setReference(data[0]['']); // Remplir la référence automatiquement
+          setReference(data[0]['']); 
         } else {
           console.error('Aucune référence trouvée dans la réponse.');
         }
@@ -60,7 +60,7 @@ const DemandeComplement = () => {
       typegrh: 'DCO',
       codetiers: user ? user.ematricule.toString() : '',
       des: values.remarque,
-      ref: reference, // Utilisation de la référence récupérée
+      ref: reference, 
       aup: values.montant,
       datedeb: dateDemande.toISOString(),
       datel: new Date().toISOString(),
@@ -83,7 +83,7 @@ const DemandeComplement = () => {
       if (response.status === 201) {
         console.log('Demande envoyée avec succès', response.data);
         resetForm();
-        setDateDemande(new Date()); // Réinitialiser la date de demande
+        setDateDemande(new Date()); 
         navigation.goBack();
       } else {
         console.log("Erreur lors de l'envoi de la demande", response.status);
@@ -120,7 +120,7 @@ const DemandeComplement = () => {
             <TouchableOpacity
               onPress={() => {
                 resetForm();
-                setDateDemande(new Date()); // Réinitialiser la date de demande
+                setDateDemande(new Date()); 
               }}
               style={styles.resetButton}
             >
@@ -139,7 +139,7 @@ const DemandeComplement = () => {
                       value={reference}
                       placeholder="Référence"
                       placeholderTextColor="#999"
-                      editable={false} // Non éditable
+                      editable={false} 
                     />
                   </View>
                   {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}

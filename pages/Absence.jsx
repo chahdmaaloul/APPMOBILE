@@ -119,7 +119,7 @@ const AbsencePage = () => {
   return (
     <View style={styles.container}>
       {loading ? (
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="small" color="orange" />
       ) : (
         <>
           <Text style={styles.headerText}>Résumé des absences par mois :</Text>

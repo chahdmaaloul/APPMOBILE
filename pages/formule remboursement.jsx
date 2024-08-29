@@ -12,7 +12,6 @@ import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
-// Validation schema using Yup
 const validationSchema = Yup.object().shape({
   employe: Yup.string().required('Le nom de l\'employé est requis'),
   service: Yup.string().required('Le nom du service est requis'),
@@ -37,7 +36,7 @@ const DemandeRemboursement = () => {
         const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DR?page=1');
         const data = response.data;
         if (data.length > 0 && data[0]['']) {
-          setReference(data[0]['']); // Remplir la référence automatiquement
+          setReference(data[0]['']); 
         } else {
           console.error('Aucune référence trouvée dans la réponse.');
         }
@@ -61,10 +60,10 @@ const DemandeRemboursement = () => {
   };
 
   const handleSubmit = async (values, { resetForm }) => {
-    // Créer l'objet demande avec la nouvelle référence
+
     const demande = {
       typegrh: 'DR',
-      codetiers: user.ematricule.toString(), // Convertir l'ID en chaîne de caractères
+      codetiers: user.ematricule.toString(),
       des: values.remarque,
       datedeb: dateRemboursementPrime.toISOString(),
       datefin: dateRemboursementFrais.toISOString(),
@@ -85,8 +84,8 @@ const DemandeRemboursement = () => {
       });
       if (response.status === 201) {
         console.log('Demande envoyée avec succès', response.data);
-        resetForm(); // Réinitialiser le formulaire après l'envoi
-        navigation.goBack(); // Revenir à l'écran précédent
+        resetForm(); 
+        navigation.goBack(); 
       } else {
         console.log("Erreur lors de l'envoi de la demande", response.status);
       }
@@ -150,7 +149,7 @@ const DemandeRemboursement = () => {
                       value={reference}
                       placeholder="Référence"
                       placeholderTextColor="#999"
-                      editable={false} // Non éditable
+                      editable={false} 
                     />
                   </View>
                   {touched.reference && errors.reference && <Text style={styles.errorText}>{errors.reference}</Text>}

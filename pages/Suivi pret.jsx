@@ -37,13 +37,13 @@ const Suivi = () => {
   useEffect(() => {
     console.log("Demandes avant filtrage:", demandes);
     const filtered = demandes.filter(demande => {
-      // Convertir EtatBP en nombre pour la comparaison
+     
       const etatBP = parseInt(demande.EtatBP, 10);
 
       if (filter === 'All') return true;
-      if (filter === 'Acceptée' && etatBP === 1) return true; // Changer ici pour Acceptée
+      if (filter === 'Acceptée' && etatBP === 1) return true; 
       if (filter === 'En attente' && isNaN(etatBP)) return true;
-      if (filter === 'Refusée' && etatBP === 0) return true; // Changer ici pour Refusée
+      if (filter === 'Refusée' && etatBP === 0) return true; 
       return false;
     });
 
@@ -70,11 +70,11 @@ const Suivi = () => {
     let iconName = '';
 
     if (etatBP === 0) {
-      status = 'Refusée'; // Changer ici pour Refusée
+      status = 'Refusée'; 
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#F44336' };
       iconName = 'times';
     } else if (etatBP === 1) {
-      status = 'Acceptée'; // Changer ici pour Acceptée
+      status = 'Acceptée'; 
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#4CAF50' };
       iconName = 'check';
     } else {
@@ -217,6 +217,7 @@ const styles = StyleSheet.create({
     color: 'gray',
   },
   calendarLink: {
+    marginTop :10,
     width: 100,
     backgroundColor: 'orange',
     alignItems: 'center',

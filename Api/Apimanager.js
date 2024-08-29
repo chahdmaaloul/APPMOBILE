@@ -10,7 +10,7 @@ const Apimaneger = axios.create({
   },
 });
 
-// Intercepteur Axios pour ajouter le token d'authentification à chaque requête
+
 Apimaneger.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem("AccessToken");

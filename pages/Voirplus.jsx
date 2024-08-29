@@ -9,7 +9,7 @@ export default function AcceptedRejectedRequests() {
   const [refreshing, setRefreshing] = useState(false);
   const [demandes, setDemandes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('accepté'); // Définir le filtre par défaut
+  const [filter, setFilter] = useState('accepté'); 
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -17,7 +17,7 @@ export default function AcceptedRejectedRequests() {
       try {
         setLoading(true);
         const response = await Apimaneger.get(`api/v1/grhs`);
-        console.log('Données récupérées:', response.data); // Vérifiez la structure des données ici
+        console.log('Données récupérées:', response.data); 
         setDemandes(response.data);
       } catch (error) {
         console.error('Error fetching demandes:', error);
@@ -35,25 +35,25 @@ export default function AcceptedRejectedRequests() {
   }, [demandes, filter]);
 
   const filteredDemandes = demandes.filter(demande => {
-    if (!demande.typegrh) return false; // Vérifiez si typegrh existe
-    if (filter === 'accepté') return demande.etatbp === true; // Filtrer pour demandes acceptées
-    if (filter === 'refusé') return demande.etatbp === false; // Filtrer pour demandes refusées
+    if (!demande.typegrh) return false;
+    if (filter === 'accepté') return demande.etatbp === true; 
+    if (filter === 'refusé') return demande.etatbp === false; 
     return false;
   });
 
   const formatDemandeDetails = (demande) => {
-    let etatText = 'En attente'; // Valeur par défaut
-    let etatStyle = styles.pending; // Style par défaut
-    let etatIcon = 'hourglass-half'; // Icône par défaut
+    let etatText = 'En attente'; 
+    let etatStyle = styles.pending; 
+    let etatIcon = 'hourglass-half'; 
   
     if (demande.etatbp === true) {
       etatText = 'Accepté';
       etatStyle = styles.accepted;
-      etatIcon = 'check-circle'; // Icône pour accepté
+      etatIcon = 'check-circle'; 
     } else if (demande.etatbp === false) {
       etatText = 'Refusé';
       etatStyle = styles.rejected;
-      etatIcon = 'times-circle'; // Icône pour refusé
+      etatIcon = 'times-circle'; 
     }
   
     return (
