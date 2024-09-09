@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, SectionList, TextInput, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, SectionList, TextInput, Image, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/AntDesign';
 import Apimaneger from '../Api/Apimanager';
-const defaultImage = require('../assets/PROF.jpg'); 
+import { Swipeable } from 'react-native-gesture-handler';
+
+const defaultImage = require('../assets/PROF.jpg');
 
 const ContactsScreen = ({ navigation }) => {
   const [employees, setEmployees] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredEmployees, setFilteredEmployees] = useState([]);
-  const [refreshing, setRefreshing] = useState(false); 
+  const [refreshing, setRefreshing] = useState(false);
   const listRef = useRef(null);
 
   useEffect(() => {
@@ -22,14 +24,68 @@ const ContactsScreen = ({ navigation }) => {
 
   const fetchEmployees = async () => {
     try {
-      setRefreshing(true); 
+      setRefreshing(true);
       const response = await Apimaneger.get('/api/v1/crm_users');
-      setEmployees(response.data);
-      setFilteredEmployees(sortEmployeesAlphabetically(response.data));
+
+      if (response && response.data && Array.isArray(response.data)) {
+        console.log('Fetched employees:', response.data);
+        setEmployees(response.data);
+        setFilteredEmployees(sortEmployeesAlphabetically(response.data));
+      } else {
+        console.error('Unexpected API response:', response);
+        Alert.alert('Error', 'Unexpected API response. Please try again later.');
+      }
     } catch (error) {
       console.error('Error fetching employees:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const confirmDeleteEmployee = (id) => {
+    Alert.alert(
+      'Confirmer la suppression',
+      'Êtes-vous sûr de vouloir supprimer cet employé?',
+      [
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
+        {
+          text: 'Supprimer',
+          style: 'destructive',
+          onPress: () => handleDeleteEmployee(id),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handleDeleteEmployee = async (id) => {
+    if (!id) {
+      console.error('Invalid employee ID:', id);
+      Alert.alert('Error', 'Invalid employee ID.');
+      return;
+    }
+
+    try {
+      const response = await Apimaneger.delete(`/api/v1/crm_users/${id}`);
+      console.log('API response after delete:', response);
+
+      setEmployees((prevEmployees) =>
+        prevEmployees.filter((employee) => employee.id !== id)
+      );
+
+      setFilteredEmployees((prevFilteredEmployees) =>
+        sortEmployeesAlphabetically(
+          prevFilteredEmployees.filter((employee) => employee.id !== id)
+        )
+      );
+
+      Alert.alert('Success', 'Employee deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting employee:', error.message);
+      Alert.alert('Error', 'Could not delete employee. Please try again.');
     }
   };
 
@@ -44,9 +100,11 @@ const ContactsScreen = ({ navigation }) => {
   };
 
   const sortEmployeesAlphabetically = (employeesList) => {
-    if (!employeesList || employeesList.length === 0) return [];
+    if (!employeesList || !employeesList.length) return [];
 
     const grouped = employeesList.reduce((acc, employee) => {
+      if (!employee || !employee.username) return acc; // Safety check
+
       const firstLetter = employee.username[0].toUpperCase();
       if (!acc[firstLetter]) {
         acc[firstLetter] = [];
@@ -65,16 +123,42 @@ const ContactsScreen = ({ navigation }) => {
     return sections;
   };
 
-  const renderItem = ({ item }) => (
-    <View style={styles.employeeContainer}>
-      <Image source={item.image ? { uri: item.image } : defaultImage} style={styles.avatar} />
-      <View style={styles.info}>
-        <Text style={styles.name}>{item.username}</Text>
-        <Text style={styles.email}>{item.email}</Text>
-        
-      </View>
-    </View>
-  );
+  const renderItem = ({ item }) => {
+    if (!item || !item.id || !item.username || !item.email) {
+      console.warn('Undefined or incomplete item:', item);
+      return null;
+    }
+
+    return (
+      <Swipeable
+        renderRightActions={(progress, dragX) =>
+          renderRightActions(progress, dragX, item.id)
+        }
+      >
+        <View style={styles.employeeContainer}>
+          <Image
+            source={item.image ? { uri: item.image } : defaultImage}
+            style={styles.avatar}
+          />
+          <View style={styles.info}>
+            <Text style={styles.name}>{item.username}</Text>
+            <Text style={styles.email}>{item.email}</Text>
+          </View>
+        </View>
+      </Swipeable>
+    );
+  };
+
+  const renderRightActions = (progress, dragX, id) => {
+    return (
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => confirmDeleteEmployee(id)}
+      >
+        <Icon name="delete" size={30} color="#fff" />
+      </TouchableOpacity>
+    );
+  };
 
   const renderSectionHeader = ({ section: { title } }) => (
     <View style={styles.sectionHeader}>
@@ -95,7 +179,7 @@ const ContactsScreen = ({ navigation }) => {
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name or email"
+          placeholder="rechercher "
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -109,8 +193,8 @@ const ContactsScreen = ({ navigation }) => {
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderItem}
         renderSectionHeader={renderSectionHeader}
-        onRefresh={fetchEmployees} 
-        refreshing={refreshing} 
+        onRefresh={fetchEmployees}
+        refreshing={refreshing}
         style={{ flex: 1 }}
       />
     </View>
@@ -139,7 +223,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
   },
-  
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,6 +290,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#888',
+  },
+  deleteButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 70,
+    backgroundColor: '#ff3b30',
   },
 });
 

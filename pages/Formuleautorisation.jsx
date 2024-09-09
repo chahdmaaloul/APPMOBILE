@@ -95,7 +95,8 @@ const DemandeAutorisation = () => {
       datel: new Date().toISOString(),
       datec: new Date().toISOString(),
       categorie: values.service,
-     etatp:"",
+      etatbp: "",
+      etatbp1: "",
       ref: reference,
     };
 

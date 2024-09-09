@@ -2,28 +2,24 @@ import React, { useRef, useState, useEffect, useCallback,useContext } from 'reac
 import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView, TextInput, Dimensions, RefreshControl,ActivityIndicator,FlatList, } from 'react-native';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
 import { useNavigation } from '@react-navigation/native';
-
-import { AntDesign, FontAwesome } from '@expo/vector-icons'; // Import FontAwesome
+import { AntDesign, FontAwesome } from '@expo/vector-icons'; 
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import Conge from './Demandecongee';
 import Autorisation from './DemandeAutorisation';
 import Complement from './Demandecomplement';
-import LoansTabs from './LoansTabs';
 import Rembourcement from './Demanderemboursement';
-import SettingsScreen from './settings';
 import ManagerDashboard from './panager';
-import AbsenceTracker from './Absence';
 import Bottensheet from '../components/Bottensheet';
 import { useUser } from '../Api/UserContext';
 import Carousel from 'react-native-snap-carousel-new';
-import NotificationSheet from '../components/bottennotification';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import Apimaneger from '../Api/Apimanager';
 import AbsencePage from './Absence';
-
+import Suivi from './Suivi pret';
+import AddUserForm from '../screnns/Singup';
 const { width: screenWidth } = Dimensions.get('window'); 
 
 const carouselItems = [
@@ -80,9 +76,7 @@ const ListItem = ({ item }) => {
             <Text style={styles.cardTitle}>{item.title}</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.cardButton}>
-          <FontAwesome name="plus" size={24} color="#777" />
-        </TouchableOpacity>
+  
       </View>
     </Animated.View>
   );
@@ -263,20 +257,12 @@ function LogoTitle() {
     />
   );
 }
-const NotificationIcon = ({ openNotificationSheet }) => {
-  return (
-    <TouchableOpacity onPress={openNotificationSheet}>
-      <AntDesign name="bells" size={24} color="black" style={{ marginRight: 15 }} />
-    </TouchableOpacity>
-  );
-};
+
 
 function HomeScreen() {
   const notificationRef = useRef(null);
 
-  const openNotificationSheet = () => {
-    notificationRef?.current?.present();
-  };
+
   const {user} = useUser();
   const hasManagerRole = user?.roles.includes('ROLE_MANAGER');
   
@@ -399,7 +385,7 @@ function HomeScreen() {
         />
         <Drawer.Screen
           name="Demandes de prêt"
-          component={LoansTabs}
+          component={Suivi}
           options={{
             drawerLabel: 'Demande de prêt',
             drawerIcon: ({ color, size }) => (
@@ -461,9 +447,32 @@ function HomeScreen() {
             },
           }}
         />
-        )}
+      )}
+      {hasManagerRole && (
+        <Drawer.Screen
+        name="Ajouter utilisateur"
+        component={AddUserForm }
+        options={{
+          drawerLabel: 'Ajouter utilisateur',
+          drawerIcon: ({ color, size }) => (
+            <AntDesign name="adduser" size={size} color={color} /> 
+          ),
+          headerTitleAlign: 'center',
+          headerTitleStyle: {
+            fontSize: 15,
+            fontWeight: 'bold',
+            color: '#4b67a1',
+          },
+          headerStyle: {
+            borderBottomWidth: 0,
+            backgroundColor: '#f5f5f5',
+          },
+        }}
+      />
+      )}
+       
       </Drawer.Navigator>
-      <NotificationSheet ref={notificationRef} />
+    
     </BottomSheetModalProvider>
   );
 }

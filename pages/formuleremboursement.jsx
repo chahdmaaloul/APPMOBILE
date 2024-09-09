@@ -1,39 +1,39 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView ,KeyboardAvoidingView , Platform } from 'react-native';
-import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import React, { useState, useContext, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView , KeyboardAvoidingView , Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import { useNavigation } from '@react-navigation/native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import moment from 'moment';
 import 'moment/locale/fr';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import Icon from 'react-native-vector-icons/FontAwesome';
 import Apimaneger from '../Api/Apimanager';
 import { UserContext } from '../Api/UserContext';
 
 moment.locale('fr');
 
-
 const validationSchema = Yup.object().shape({
-  employe: Yup.string().required("Le nom de l'employé est requis"),
-  service: Yup.string().required("Le nom du service est requis"),
-  dateDemande: Yup.date().required('La date de demande est requise'),
+  employe: Yup.string().required('Le nom de l\'employé est requis'),
+  service: Yup.string().required('Le nom du service est requis'),
   montant: Yup.number().required('Le montant est requis').positive('Le montant doit être positif'),
-  totalComplement: Yup.number().required('Le total du complément est requis').positive('Le total du complément doit être positif'),
-  typeComplement: Yup.string().required('Le type de complément est requis'),
+  dateRemboursementPrime: Yup.date().required('La date de remboursement de prime est requise'),
+  dateRemboursementFrais: Yup.date().required('La date de remboursement de frais est requise'),
   remarque: Yup.string(),
 });
 
-const DemandeComplement = () => {
+const DemandeRemboursement = () => {
   const navigation = useNavigation();
   const { user } = useContext(UserContext);
-  const [dateDemande, setDateDemande] = useState(new Date());
-  const [showDateDemande, setShowDateDemande] = useState(false);
+  const [dateRemboursementPrime, setDateRemboursementPrime] = useState(new Date());
+  const [dateRemboursementFrais, setDateRemboursementFrais] = useState(new Date());
+  const [showDateRemboursementPrime, setShowDateRemboursementPrime] = useState(false);
+  const [showDateRemboursementFrais, setShowDateRemboursementFrais] = useState(false);
   const [reference, setReference] = useState('');
 
   useEffect(() => {
     const fetchReference = async () => {
       try {
-        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DCO?page=1');
+        const response = await Apimaneger.get('https://cmc.crm-edi.info/paraMobile/api/public/api/v1/GRH/getformat/DR?page=1');
         const data = response.data;
         if (data.length > 0 && data[0]['']) {
           setReference(data[0]['']); 
@@ -47,56 +47,52 @@ const DemandeComplement = () => {
 
     fetchReference();
   }, []);
+  const onChangeDateRemboursementPrime = (event, selectedDate) => {
+    const currentDate = selectedDate || dateRemboursementPrime;
+    setShowDateRemboursementPrime(false);
+    setDateRemboursementPrime(currentDate);
+  };
 
-  const onChangeDateDemande = (event, selectedDate, setFieldValue) => {
-    const currentDate = selectedDate || dateDemande;
-    setShowDateDemande(false);
-    setDateDemande(currentDate);
-    setFieldValue('dateDemande', currentDate);
+  const onChangeDateRemboursementFrais = (event, selectedDate) => {
+    const currentDate = selectedDate || dateRemboursementFrais;
+    setShowDateRemboursementFrais(false);
+    setDateRemboursementFrais(currentDate);
   };
 
   const handleSubmit = async (values, { resetForm }) => {
-    let demande = {
-      typegrh: 'DCO',
-      codetiers: user ? user.ematricule.toString() : '',
+
+    const demande = {
+      typegrh: 'DR',
+      codetiers: user.ematricule.toString(),
       des: values.remarque,
-      ref: reference, 
-      aup: values.montant,
-      datedeb: dateDemande.toISOString(),
+      datedeb: dateRemboursementPrime.toISOString(),
+      datefin: dateRemboursementFrais.toISOString(),
       datel: new Date().toISOString(),
       categorie: values.service,
-      obj: values.typeComplement,
-      etatbp: "",
-      etatbp1: "",
-      MOYDEP:values.totalComplement
+      aup: values.montant,
+      etatbp: null,
+      etatbp1: null,
+      ref: reference,
     };
-
     const removeEmptyFields = (obj) => {
       return Object.fromEntries(Object.entries(obj).filter(([_, v]) => v != null && v !== ''));
     };
+   
     try {
       const response = await Apimaneger.post('/api/v1/grhs', removeEmptyFields(demande), {
         headers: {
           'Content-Type': 'application/json',
         }
       });
-
       if (response.status === 201) {
         console.log('Demande envoyée avec succès', response.data);
-        resetForm();
-        setDateDemande(new Date()); 
+       
         navigation.goBack();
       } else {
         console.log("Erreur lors de l'envoi de la demande", response.status);
       }
     } catch (error) {
-      if (error.response) {
-        console.error("Erreur lors de l'envoi de la demande:", error.response.data);
-      } else if (error.request) {
-        console.error("Erreur lors de l'envoi de la demande:", error.request);
-      } else {
-        console.error("Erreur lors de l'envoi de la demande:", error.message);
-      }
+      console.error("Erreur lors de l'envoi de la demande:", error.message);
     }
   };
 
@@ -107,25 +103,34 @@ const DemandeComplement = () => {
     keyboardVerticalOffset={1}
   >
     <Formik
-      initialValues={{ employe: user ? user.ematricule : '', service: '', dateDemande: '', montant: '', totalComplement: '', typeComplement: '', remarque: '' }}
+      initialValues={{
+        
+        employe: user ? user.ematricule : '',
+        service: '',
+        montant: '',
+        dateRemboursementPrime: '',
+        dateRemboursementFrais: '',
+        remarque: ''
+      }}
       validationSchema={validationSchema}
       onSubmit={handleSubmit}
     >
-      {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue, resetForm }) => (
+      {({ handleChange, handleBlur, handleSubmit, setFieldValue, values, errors, touched, resetForm }) => (
         <View style={styles.container}>
           <View style={styles.topHalf}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <Icon name="arrow-left" size={25} color="#fff" />
             </TouchableOpacity>
-            <Text style={styles.title}>Demande de Complément</Text>
+            <Text style={styles.title}>Demande de Remboursement</Text>
             <TouchableOpacity
               onPress={() => {
                 resetForm();
-                setDateDemande(new Date()); 
+                setFieldValue('dateRemboursementPrime', new Date());
+                setFieldValue('dateRemboursementFrais', new Date());
               }}
               style={styles.resetButton}
             >
-              <Icon name="refresh" size={25} color="#fff" />
+              <Icon name="repeat" size={25} color="#fff" />
             </TouchableOpacity>
           </View>
           <View style={styles.bottomHalf}>
@@ -154,27 +159,12 @@ const DemandeComplement = () => {
                       value={values.employe}
                       onChangeText={handleChange('employe')}
                       onBlur={handleBlur('employe')}
-                      placeholder="Nom d'utilisateur"
+                      placeholder="Nom de l'employé"
                       placeholderTextColor="#999"
                       editable={false}
                     />
                   </View>
                   {touched.employe && errors.employe && <Text style={styles.errorText}>{errors.employe}</Text>}
-                </View>
-                <View style={styles.formGroup}>
-                  <Text style={styles.label}>Type de complément</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="list" size={20} color="#999" style={styles.icon} />
-                    <TextInput
-                      style={styles.input}
-                      value={values.typeComplement}
-                      onChangeText={handleChange('typeComplement')}
-                      onBlur={handleBlur('typeComplement')}
-                      placeholder="Type de complément"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-                  {touched.typeComplement && errors.typeComplement && <Text style={styles.errorText}>{errors.typeComplement}</Text>}
                 </View>
 
                 <View style={styles.formGroup}>
@@ -194,23 +184,6 @@ const DemandeComplement = () => {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Date de demande</Text>
-                  <TouchableOpacity onPress={() => setShowDateDemande(true)} style={styles.datePickerButton}>
-                    <Icon name="calendar" size={20} color="#999" style={styles.icon} />
-                    <Text style={styles.dateText}>{moment(values.dateDemande).format('LL')}</Text>
-                  </TouchableOpacity>
-                  {showDateDemande && (
-                    <DateTimePicker
-                      value={values.dateDemande || new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, selectedDate) => onChangeDateDemande(event, selectedDate, setFieldValue)}
-                    />
-                  )}
-                  {touched.dateDemande && errors.dateDemande && <Text style={styles.errorText}>{errors.dateDemande}</Text>}
-                </View>
-
-                <View style={styles.formGroup}>
                   <Text style={styles.label}>Montant</Text>
                   <View style={styles.inputContainer}>
                     <Icon name="money" size={20} color="#999" style={styles.icon} />
@@ -219,7 +192,7 @@ const DemandeComplement = () => {
                       value={values.montant}
                       onChangeText={handleChange('montant')}
                       onBlur={handleBlur('montant')}
-                      placeholder="Montant"
+                      placeholder="Montant à rembourser"
                       placeholderTextColor="#999"
                       keyboardType="numeric"
                     />
@@ -228,20 +201,49 @@ const DemandeComplement = () => {
                 </View>
 
                 <View style={styles.formGroup}>
-                  <Text style={styles.label}>Total du complément</Text>
-                  <View style={styles.inputContainer}>
-                    <Icon name="money" size={20} color="#999" style={styles.icon} />
-                    <TextInput
-                      style={styles.input}
-                      value={values.totalComplement}
-                      onChangeText={handleChange('totalComplement')}
-                      onBlur={handleBlur('totalComplement')}
-                      placeholder="Total du complément"
-                      placeholderTextColor="#999"
-                      keyboardType="numeric"
+                  <Text style={styles.label}>Date de remboursement prime chantier</Text>
+                  <TouchableOpacity 
+                    onPress={() => setShowDateRemboursementPrime(true)} 
+                    style={styles.datePickerButton}
+                  >
+                    <Icon name="calendar" size={20} color="#999" style={styles.icon} />
+                    <Text style={styles.dateText}>{moment(dateRemboursementPrime).format('LL')}</Text>
+                  </TouchableOpacity>
+                  {showDateRemboursementPrime && (
+                    <DateTimePicker
+                      value={dateRemboursementPrime}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        onChangeDateRemboursementPrime(event, selectedDate);
+                        setFieldValue('dateRemboursementPrime', selectedDate);
+                      }}
                     />
-                  </View>
-                  {touched.totalComplement && errors.totalComplement && <Text style={styles.errorText}>{errors.totalComplement}</Text>}
+                  )}
+                  {touched.dateRemboursementPrime && errors.dateRemboursementPrime && <Text style={styles.errorText}>{errors.dateRemboursementPrime}</Text>}
+                </View>
+
+                <View style={styles.formGroup}>
+                  <Text style={styles.label}>Date de remboursement frais</Text>
+                  <TouchableOpacity 
+                    onPress={() => setShowDateRemboursementFrais(true)} 
+                    style={styles.datePickerButton}
+                  >
+                    <Icon name="calendar" size={20} color="#999" style={styles.icon} />
+                    <Text style={styles.dateText}>{moment(dateRemboursementFrais).format('LL')}</Text>
+                  </TouchableOpacity>
+                  {showDateRemboursementFrais && (
+                    <DateTimePicker
+                      value={dateRemboursementFrais}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        onChangeDateRemboursementFrais(event, selectedDate);
+                        setFieldValue('dateRemboursementFrais', selectedDate);
+                      }}
+                    />
+                  )}
+                  {touched.dateRemboursementFrais && errors.dateRemboursementFrais && <Text style={styles.errorText}>{errors.dateRemboursementFrais}</Text>}
                 </View>
 
                 <View style={styles.formGroup}>
@@ -249,13 +251,14 @@ const DemandeComplement = () => {
                   <View style={styles.inputContainer}>
                     <Icon name="comment" size={20} color="#999" style={styles.icon} />
                     <TextInput
-                      style={[styles.input, styles.textarea]}
+                      style={[styles.input, styles.multilineInput]}
                       value={values.remarque}
                       onChangeText={handleChange('remarque')}
                       onBlur={handleBlur('remarque')}
                       placeholder="Remarque"
                       placeholderTextColor="#999"
                       multiline
+                      numberOfLines={5}
                     />
                   </View>
                   {touched.remarque && errors.remarque && <Text style={styles.errorText}>{errors.remarque}</Text>}
@@ -287,7 +290,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 50,
     paddingHorizontal: 20,
-    paddingBottom: 10,
+    paddingBottom: 20,
   },
   bottomHalf: {
     flex: 1,
@@ -310,16 +313,16 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   resetButton: {
-    marginLeft: 10,
+    marginLeft: 'auto',
   },
   scrollView: {
     flex: 1,
   },
   formContainer: {
-    marginVertical: 10,
+    flex: 1,
   },
   formGroup: {
-    marginBottom: 10,
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
@@ -332,39 +335,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 25,
-    paddingHorizontal: 16,
-    marginBottom: 10,
     backgroundColor: '#f5f5f5',
+    paddingHorizontal: 15,
   },
   input: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
     paddingVertical: 12,
     paddingHorizontal: 10,
-  },
-  multilineInput: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  icon: {
-    marginRight: 10,
-  },
-  button: {
-    backgroundColor: '#006AB6',
-    paddingVertical: 16,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: 'red',
-    marginTop: 5,
+    color: '#000',
   },
   datePickerButton: {
     flexDirection: 'row',
@@ -372,17 +351,37 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 25,
-    paddingHorizontal: 16,
-    marginBottom: 10,
     backgroundColor: '#f5f5f5',
+    paddingHorizontal: 15,
+    paddingVertical: 12,
   },
   dateText: {
-    flex: 1,
     fontSize: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
-    color: '#333',
+    marginLeft: 10,
+    color: '#000',
+  },
+  button: {
+    backgroundColor: '#006AB6',
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  errorText: {
+    color: 'red',
+    marginTop: 5,
+  },
+  icon: {
+    marginRight: 10,
+  },
+  multilineInput: {
+    height: 100,
+    textAlignVertical: 'top',
   },
 });
-
-export default DemandeComplement;
+export default DemandeRemboursement ;

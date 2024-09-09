@@ -9,7 +9,7 @@ const { width } = Dimensions.get('window');
 const AbsencePage = () => {
   const [demandes, setDemandes] = useState([]);
   const [monthlyAbsences, setMonthlyAbsences] = useState({});
-  const [loading, setLoading] = useState(false); // État pour le chargement
+  const [loading, setLoading] = useState(false);
   const [noDemandesMessage, setNoDemandesMessage] = useState("");
   const [expandedMonths, setExpandedMonths] = useState(new Set());
   const { user } = useUser();
@@ -29,25 +29,28 @@ const AbsencePage = () => {
     };
 
     fetchDemandes();
-  }, []); // Utiliser une dépendance vide pour que l'effet s'exécute uniquement au premier rendu
+  }, []);
 
   useEffect(() => {
     if (user) {
-      // Filtrer les demandes
       const filtered = demandes
-        .filter(demande => 
+        .filter(demande =>
           demande.typegrh && demande.codetiers &&
           (demande.typegrh.trim() === 'DC' || demande.typegrh.trim() === 'DA') &&
           demande.etatbp === true &&
           demande.codetiers.trim() === user.ematricule
         )
-        .map(demande => ({
-          datedeb: demande.datedeb,
-          datefin: demande.datefin,
-          duree: parseFloat(demande.duree) || 0
-        }));
+        .map(demande => {
+          const startDate = new Date(demande.datedeb);
+          const endDate = new Date(demande.datefin);
+          const duration = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // Calcul de la durée en jours
+          return {
+            datedeb: demande.datedeb,
+            datefin: demande.datefin,
+            duree: duration
+          };
+        });
 
-      // Regrouper par mois
       const monthlyTotals = {};
       for (let i = 1; i <= 12; i++) {
         monthlyTotals[i] = { total: 0, details: [] };
@@ -59,10 +62,8 @@ const AbsencePage = () => {
         monthlyTotals[month].details.push(demande);
       });
 
-      // Mettre à jour les absences mensuelles
       setMonthlyAbsences(monthlyTotals);
 
-      // Gestion du message lorsque aucune demande n'est trouvée
       if (Object.keys(monthlyTotals).length === 0) {
         setNoDemandesMessage("Aucune absence trouvée.");
       } else {

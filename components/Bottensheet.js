@@ -98,7 +98,7 @@ const Bottensheet = forwardRef((props, ref) => {
       console.error('Upload failed:', error);
     }
   };
-
+  
   const closeBottomSheet = () => {
     if (isEditable) {
       Alert.alert(

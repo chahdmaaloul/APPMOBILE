@@ -9,11 +9,11 @@ import Page from './screnns/Page';
 import Homescreen from './pages/Homescreen';
 import DemandeAutorisation from './pages/Formuleautorisation';
 import DemandeConge from './pages/Formuleconges';
-import DemandePret from './pages/formule de pret';
+import DemandePret from './pages/formuledepret';
 import SettingsScreen from './pages/settings';
-import DemandeRemboursement from './pages/formule remboursement';
+import DemandeRemboursement from './pages/formuleremboursement';
 import DemandeComplement from './pages/Formulecomplement';
-import { DarkModeProvider } from './components/DarkModeContext';
+
 import Change from './pages/change';
 import { UserProvider } from './Api/UserContext';
 import Complement from './pages/Demandecomplement';
@@ -30,7 +30,7 @@ export default function App() {
   return (
     <UserProvider>
     <NavigationContainer>
-      <DarkModeProvider>
+   
       <Stack.Navigator initialRouteName="SplashScreen" screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SplashScreen" component={SplashScreen} options={{ headerShown: false }} />
       <Stack.Screen name="home" component={Homescreen} options={{ title: 'home' }} />
@@ -53,7 +53,7 @@ export default function App() {
         <Stack.Screen name="voir" component={AcceptedRejectedRequests} options={{ title: 'voir' }} />
        
       </Stack.Navigator>
-      </DarkModeProvider>
+    
     </NavigationContainer>
     </UserProvider>
   );

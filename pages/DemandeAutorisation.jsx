@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Apimaneger from '../Api/Apimanager';
 import { UserContext } from '../Api/UserContext';
@@ -10,10 +10,10 @@ const Autorisation = () => {
   const [demandes, setDemandes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filteredDemandes, setFilteredDemandes] = useState([]);
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('Tout');
   const [displayedDemandes, setDisplayedDemandes] = useState([]);
   const [showAll, setShowAll] = useState(false);
-  const [expandedDemandeId, setExpandedDemandeId] = useState(null); // État pour gérer les demandes développées
+  const [expandedDemandeId, setExpandedDemandeId] = useState(null);
   const { user } = useContext(UserContext);
 
   const fetchDemandes = useCallback(async () => {
@@ -38,13 +38,12 @@ const Autorisation = () => {
   useEffect(() => {
     console.log("Demandes avant filtrage:", demandes);
     const filtered = demandes.filter(demande => {
-      // Convertir EtatBP en nombre pour la comparaison
       const etatBP = parseInt(demande.EtatBP, 10);
 
-      if (filter === 'All') return true;
-      if (filter === 'Acceptée' && etatBP === 1) return true; // Changer ici pour Acceptée
+      if (filter === 'Tout') return true;
+      if (filter === 'Acceptée' && etatBP === 1) return true;
       if (filter === 'En attente' && isNaN(etatBP)) return true;
-      if (filter === 'Refusée' && etatBP === 0) return true; // Changer ici pour Refusée
+      if (filter === 'Refusée' && etatBP === 0) return true;
       return false;
     });
 
@@ -60,23 +59,45 @@ const Autorisation = () => {
     setExpandedDemandeId(expandedDemandeId === id ? null : id);
   };
 
+  const deleteDemande = async (uniqueid) => {
+    Alert.alert(
+      "Confirmation",
+      "Êtes-vous sûr de vouloir supprimer cette demande ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await Apimaneger.delete(`/api/v1/grhs/${uniqueid}`);
+              setDemandes(demandes.filter(demande => demande.uniqueid !== uniqueid));
+              Alert.alert("Succès", "La demande a été supprimée avec succès.");
+            } catch (error) {
+              console.error("Erreur lors de la suppression de la demande:", error);
+              Alert.alert("Erreur", "Une erreur est survenue lors de la suppression.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderDemande = ({ item }) => {
-    const { uniqueid, DateDEB, DateFin, DUREE, EtatBP, HeurDeb, HeurFin, Des ,Categorie} = item;
-    
-    console.log("DateDEB:", DateDEB); // Ajoutez ceci pour vérifier les valeurs
-    console.log("DateFin:", DateFin);
+    const { uniqueid, DateDEB, DateFin, DUREE, EtatBP, HeurDeb, HeurFin, Des, Categorie } = item;
+
     const etatBP = parseInt(EtatBP, 10);
     let status = '';
     let statusStyle = styles.absenceStatus;
     let statusContainerStyle = styles.statusContainer;
     let iconName = '';
-  
+
     if (etatBP === 0) {
-      status = 'Refusée'; // Changer ici pour Refusée
+      status = 'Refusée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#F44336' };
       iconName = 'times';
     } else if (etatBP === 1) {
-      status = 'Acceptée'; // Changer ici pour Acceptée
+      status = 'Acceptée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#4CAF50' };
       iconName = 'check';
     } else {
@@ -84,15 +105,12 @@ const Autorisation = () => {
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#FFC107' };
       iconName = 'hourglass-half';
     }
-  
-    // Convert date strings to Date objects
+
     const dateDeb = new Date(DateDEB);
     const dateFin = new Date(DateFin);
-    
-    // Combine date with time to create Date objects for time display
     const heureDeb = new Date(`${dateDeb.toDateString()} ${HeurDeb}`);
     const heureFin = new Date(`${dateDeb.toDateString()} ${HeurFin}`);
-  
+
     return (
       <View style={styles.upcomingAbsence}>
         <View style={statusContainerStyle}>
@@ -103,16 +121,22 @@ const Autorisation = () => {
         <Text style={styles.absenceDates}>{`${dateDeb.toLocaleDateString()} - ${dateFin.toLocaleDateString()}`}</Text>
         <Text style={styles.absenceDates}>{`${heureDeb.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${heureFin.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}</Text>
 
-        {/* Bouton pour afficher ou masquer les détails supplémentaires */}
-        <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
-          <Text>{expandedDemandeId === uniqueid ? '-' : '+'} Détails</Text>
-        </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
+            <Text>{expandedDemandeId === uniqueid ? '-' : '+'} Détails</Text>
+          </TouchableOpacity>
 
-        {/* Affichage des détails supplémentaires si la demande est développée */}
+          {isNaN(etatBP) && (
+          <TouchableOpacity onPress={() => deleteDemande(uniqueid)} style={styles.trashButton}>
+            <Icon name="trash" size={20} color="#F44336" />
+          </TouchableOpacity>
+        )}
+      </View>
+
         {expandedDemandeId === uniqueid && (
           <View style={styles.detailsContainer}>
-           <Text style={styles.detailsText}>service: {Categorie}</Text>
-           <Text style={styles.detailsText}>remarque: { Des}</Text>
+            <Text style={styles.detailsText}>Service: {Categorie}</Text>
+            <Text style={styles.detailsText}>Remarque: {Des}</Text>
           </View>
         )}
       </View>
@@ -131,7 +155,7 @@ const Autorisation = () => {
       <Text style={styles.subtitle}>Historique des demandes</Text>
 
       <View style={styles.filterContainer}>
-        {['All', 'Acceptée', 'En attente', 'Refusée'].map(f => (
+        {['Tout', 'Acceptée', 'En attente', 'Refusée'].map(f => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}
@@ -171,11 +195,6 @@ const Autorisation = () => {
 };
 
 const styles = StyleSheet.create({
-  absenceObject: {
-    fontSize: 18,  
-    color: "#1D4B8F",  
-    marginBottom: 4, 
-  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
@@ -226,19 +245,54 @@ const styles = StyleSheet.create({
   absenceDates: {
     fontSize: 14,
     color: 'gray',
-    marginBottom: 4,
+  },
+  calendarLink: {
+    marginTop: 10,
+    width: 100,
+    backgroundColor: 'orange',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+    borderRadius: 25,
+    alignSelf: 'center',
+  },
+  calendarLinkText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  list: {
+    paddingBottom: 16,
+  },
+  noRequests: {
+    textAlign: 'center',
+    color: 'gray',
+    fontSize: 16,
+    marginTop: 20,
+  },
+  statusContainer: {
+    borderRadius: 8,
+    padding: 4,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+  },
+  statusIcon: {
+    marginRight: 8,
   },
   filterContainer: {
     flexDirection: 'row',
+    justifyContent: 'space-around',
     marginBottom: 16,
   },
   filterButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    padding: 8,
     borderRadius: 4,
-    marginRight: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+  },
+  filterText: {
+    fontSize: 14,
   },
   activeFilter: {
     backgroundColor: '#ddd',
@@ -268,57 +322,38 @@ const styles = StyleSheet.create({
     backgroundColor: 'red',
     marginRight: 8,
   },
-  filterText: {
-    fontSize: 14,
+  absenceObject: {
+    fontSize: 18,
+    color: "#1D4B8F",
+    marginBottom: 4,
   },
-  list: {
-    paddingBottom: 16,
-  },
-  noRequests: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: 'gray',
-  },
-  calendarLink: {
-    marginTop :10,
-    width: 100,
-    backgroundColor: 'orange',
-    alignItems: 'center',
-    justifyContent: 'center', 
-    paddingVertical: 15,
-    borderRadius: 25,
-    alignSelf: 'center', 
-  },
-  calendarLinkText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
-  detailsButton: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
+
   detailsContainer: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 8,
   },
   detailsText: {
     fontSize: 14,
-    color: '#333',
+    color: 'gray',
   },
-  statusContainer: {
+  actionsContainer: {
+    flexDirection: 'row', // Les éléments seront sur la même ligne
+    justifyContent: 'space-between', // Espace entre les éléments
+    alignItems: 'center', // Alignement vertical des éléments
+    marginTop: 8, // Espacement au-dessus de l'action
+  },
+  detailsButton: {
+   
+    alignItems: 'flex-start', // Aligner à gauche
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f1f1f1',
     borderRadius: 8,
-    padding: 4,
-    marginBottom: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    alignSelf: 'flex-start',
   },
-  statusIcon: {
-    marginRight: 8,
+  trashButton: {
+    marginLeft: 16, // Ajouter un espacement à gauche pour la corbeille
   },
 });
 

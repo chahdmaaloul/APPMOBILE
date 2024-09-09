@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Apimaneger from '../Api/Apimanager';
 import { UserContext } from '../Api/UserContext';
@@ -13,7 +13,7 @@ const Complement = () => {
   const [filteredDemandes, setFilteredDemandes] = useState([]);
   const [displayedDemandes, setDisplayedDemandes] = useState([]);
   const [showAll, setShowAll] = useState(false);
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('Tout');
   const [detailsExpanded, setDetailsExpanded] = useState(null); // État pour gérer l'affichage des détails
   const { user } = useContext(UserContext);
 
@@ -34,16 +34,15 @@ const Complement = () => {
       fetchDemandes();
     }, [fetchDemandes])
   );
+
   useEffect(() => {
-    console.log("Demandes avant filtrage:", demandes);
     const filtered = demandes.filter(demande => {
-      // Convertir EtatBP en nombre pour la comparaison
       const etatBP = parseInt(demande.EtatBP, 10);
 
-      if (filter === 'All') return true;
-      if (filter === 'Acceptée' && etatBP === 1) return true; // Changer ici pour Acceptée
+      if (filter === 'Tout') return true;
+      if (filter === 'Acceptée' && etatBP === 1) return true; 
       if (filter === 'En attente' && isNaN(etatBP)) return true;
-      if (filter === 'Refusée' && etatBP === 0) return true; // Changer ici pour Refusée
+      if (filter === 'Refusée' && etatBP === 0) return true;
       return false;
     });
 
@@ -58,22 +57,44 @@ const Complement = () => {
     setDetailsExpanded(prev => (prev === id ? null : id));
   };
 
+  const deleteDemande = async (uniqueid) => {
+    Alert.alert(
+      "Confirmation",
+      "Êtes-vous sûr de vouloir supprimer cette demande ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await Apimaneger.delete(`/api/v1/grhs/${uniqueid}`);
+              setDemandes(demandes.filter(demande => demande.uniqueid !== uniqueid));
+              Alert.alert("Succès", "La demande a été supprimée avec succès.");
+            } catch (error) {
+              console.error("Erreur lors de la suppression de la demande:", error);
+              Alert.alert("Erreur", "Une erreur est survenue lors de la suppression.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderDemande = ({ item }) => {
-    const { DateDEB, DUREE, EtatBP, AUP, OBJ, uniqueid,Des,Categorie,MOYDEP } = item;
-   
+    const { DateDEB, DUREE, EtatBP, AUP, OBJ, uniqueid, Des, Categorie, MOYDEP } = item;
     const etatBP = parseInt(EtatBP, 10);
-   
+
     let status = '';
-    let statusStyle = styles.absenceStatus;
     let statusContainerStyle = styles.statusContainer;
     let iconName = '';
 
     if (etatBP === 0) {
-      status = 'Refusée'; // Changer ici pour Refusée
+      status = 'Refusée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#F44336' };
       iconName = 'times';
     } else if (etatBP === 1) {
-      status = 'Acceptée'; // Changer ici pour Acceptée
+      status = 'Acceptée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#4CAF50' };
       iconName = 'check';
     } else {
@@ -86,20 +107,29 @@ const Complement = () => {
       <View style={styles.upcomingAbsence}>
         <View style={statusContainerStyle}>
           <Icon name={iconName} size={16} color="white" style={styles.statusIcon} />
-          <Text style={statusStyle}>{status}</Text>
+          <Text style={styles.absenceStatus}>{status}</Text>
         </View>
         <Text style={styles.absenceObject}>Type de complément: {OBJ}</Text>
         <Text style={styles.absenceDays}>Montant: {AUP}</Text>
         <Text style={styles.absenceDates}>{moment(DateDEB).format('LL')}</Text>
-        {/* Bouton + pour afficher plus de détails */}
-        <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
-          <Text >{detailsExpanded === uniqueid ? '-' : '+'} Détails</Text>
-        </TouchableOpacity>
+
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
+            <Text>{detailsExpanded === uniqueid ? '-' : '+'} Détails</Text>
+          </TouchableOpacity>
+
+          {isNaN(etatBP) && (
+          <TouchableOpacity onPress={() => deleteDemande(uniqueid)} style={styles.trashButton}>
+            <Icon name="trash" size={20} color="#F44336" />
+          </TouchableOpacity>
+        )}
+      </View>
+
         {detailsExpanded === uniqueid && (
           <View style={styles.detailsContainer}>
-              <Text style={styles.detailsText}>totalComplement: { MOYDEP}</Text>
-             <Text style={styles.detailsText}>service: {Categorie}</Text>
-             <Text style={styles.detailsText}>remarque: { Des}</Text>
+            <Text style={styles.detailsText}>Total Complément: {MOYDEP}</Text>
+            <Text style={styles.detailsText}>Service: {Categorie}</Text>
+            <Text style={styles.detailsText}>Remarque: {Des}</Text>
           </View>
         )}
       </View>
@@ -118,7 +148,7 @@ const Complement = () => {
       <Text style={styles.subtitle}>Historique des demandes</Text>
 
       <View style={styles.filterContainer}>
-        {['All', 'Acceptée', 'En attente', 'Refusée'].map(f => (
+        {['Tout', 'Acceptée', 'En attente', 'Refusée'].map(f => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}
@@ -210,19 +240,19 @@ const styles = StyleSheet.create({
     color: 'gray',
   },
   calendarLink: {
-    marginTop :10,
+    marginTop: 10,
     width: 100,
     backgroundColor: 'orange',
     alignItems: 'center',
-    justifyContent: 'center', 
+    justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 25,
-    alignSelf: 'center', 
+    alignSelf: 'center',
   },
   calendarLinkText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   list: {
     paddingBottom: 16,
@@ -290,10 +320,7 @@ const styles = StyleSheet.create({
     color: "#1D4B8F",
     marginBottom: 4,
   },
-  detailsButton: {
-    marginTop: 8,
-    alignItems: 'center',
-  },
+
   detailsContainer: {
     marginTop: 8,
     padding: 8,
@@ -303,6 +330,23 @@ const styles = StyleSheet.create({
   detailsText: {
     fontSize: 14,
     color: 'gray',
+  },
+  actionsContainer: {
+    flexDirection: 'row', // Les éléments seront sur la même ligne
+    justifyContent: 'space-between', // Espace entre les éléments
+    alignItems: 'center', // Alignement vertical des éléments
+    marginTop: 8, // Espacement au-dessus de l'action
+  },
+  detailsButton: {
+   
+    alignItems: 'flex-start', // Aligner à gauche
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 8,
+  },
+  trashButton: {
+    marginLeft: 16, // Ajouter un espacement à gauche pour la corbeille
   },
 });
 

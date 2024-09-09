@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Apimaneger from '../Api/Apimanager';
 import { UserContext } from '../Api/UserContext';
@@ -10,9 +10,9 @@ const Conge = () => {
   const [demandes, setDemandes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
-  const [expandedDemandeId, setExpandedDemandeId] = useState(null); // Nouvel état pour les détails
+  const [expandedDemandeId, setExpandedDemandeId] = useState(null);
   const { user } = useContext(UserContext);
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState('Tout');
   const [filteredDemandes, setFilteredDemandes] = useState([]);
 
   const fetchDemandes = async () => {
@@ -37,20 +37,43 @@ const Conge = () => {
     setExpandedDemandeId(expandedDemandeId === id ? null : id);
   };
 
+  const deleteDemande = async (uniqueid) => {
+    Alert.alert(
+      "Confirmation",
+      "Êtes-vous sûr de vouloir supprimer cette demande ?",
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await Apimaneger.delete(`/api/v1/grhs/${uniqueid}`);
+              setDemandes(demandes.filter(demande => demande.uniqueid !== uniqueid));
+              Alert.alert("Succès", "La demande a été supprimée avec succès.");
+            } catch (error) {
+              console.error("Erreur lors de la suppression de la demande:", error);
+              Alert.alert("Erreur", "Une erreur est survenue lors de la suppression.");
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderDemande = ({ item }) => {
-    const { DateDEB, DateFin, DUREE, EtatBP, OBJ, uniqueid,Categorie, Des } = item;
+    const { DateDEB, DateFin, DUREE, EtatBP, OBJ, uniqueid, Categorie, Des } = item;
     const etatBP = parseInt(EtatBP, 10);
     let status = '';
-    let statusStyle = styles.absenceStatus;
     let statusContainerStyle = styles.statusContainer;
     let iconName = '';
 
     if (etatBP === 0) {
-      status = 'Refusée'; // Changer ici pour Refusée
+      status = 'Refusée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#F44336' };
       iconName = 'times';
     } else if (etatBP === 1) {
-      status = 'Acceptée'; // Changer ici pour Acceptée
+      status = 'Acceptée';
       statusContainerStyle = { ...styles.statusContainer, backgroundColor: '#4CAF50' };
       iconName = 'check';
     } else {
@@ -65,21 +88,28 @@ const Conge = () => {
       <View style={styles.upcomingAbsence}>
         <View style={statusContainerStyle}>
           <Icon name={iconName} size={16} color="white" style={styles.statusIcon} />
-          <Text style={statusStyle}>{status}</Text>
+          <Text style={styles.absenceStatus}>{status}</Text>
         </View>
         <Text style={styles.absenceObject}>Type de congé: {OBJ}</Text>
         <Text style={styles.absenceDays}>{DUREE} jours</Text>
         <Text style={styles.absenceDates}>{`${new Date(DateDEB).toLocaleDateString()} - ${new Date(DateFin).toLocaleDateString()}`}</Text>
         
-        <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
-          <Text>{isExpanded ? '-' : '+'} Détails</Text>
-        </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity onPress={() => toggleDetails(uniqueid)} style={styles.detailsButton}>
+            <Text>{expandedDemandeId === uniqueid ? '-' : '+'} Détails</Text>
+          </TouchableOpacity>
+         
+          {isNaN(etatBP) && (
+          <TouchableOpacity onPress={() => deleteDemande(uniqueid)} style={styles.trashButton}>
+            <Icon name="trash" size={20} color="#F44336" />
+          </TouchableOpacity>
+        )}
+      </View>
         
         {isExpanded && (
           <View style={styles.detailsContainer}>
-            {/* Ajoutez ici les détails supplémentaires */}
-            <Text style={styles.detailsText}>service: {Categorie}</Text>
-            <Text style={styles.detailsText}>remarque: { Des}</Text>
+            <Text style={styles.detailsText}>Service: {Categorie}</Text>
+            <Text style={styles.detailsText}>Remarque: {Des}</Text>
           </View>
         )}
       </View>
@@ -87,18 +117,14 @@ const Conge = () => {
   };
 
   useEffect(() => {
-    console.log("Demandes avant filtrage:", demandes);
     const filtered = demandes.filter(demande => {
-      // Convertir EtatBP en nombre pour la comparaison
       const etatBP = parseInt(demande.EtatBP, 10);
-
-      if (filter === 'All') return true;
-      if (filter === 'Acceptée' && etatBP === 1) return true; // Changer ici pour Acceptée
+      if (filter === 'Tout') return true;
+      if (filter === 'Acceptée' && etatBP === 1) return true;
       if (filter === 'En attente' && isNaN(etatBP)) return true;
-      if (filter === 'Refusée' && etatBP === 0) return true; // Changer ici pour Refusée
+      if (filter === 'Refusée' && etatBP === 0) return true;
       return false;
     });
-    console.log("Demandes filtrées:", filtered);
     setFilteredDemandes(filtered);
   }, [demandes, filter]);
 
@@ -116,7 +142,7 @@ const Conge = () => {
       <Text style={styles.subtitle}>Historique des demandes</Text>
 
       <View style={styles.filterContainer}>
-        {['All', 'Acceptée', 'En attente', 'Refusée'].map(f => (
+        {['Tout', 'Acceptée', 'En attente', 'Refusée'].map(f => (
           <TouchableOpacity
             key={f}
             onPress={() => setFilter(f)}
@@ -214,19 +240,19 @@ const styles = StyleSheet.create({
     color: 'gray',
   },
   calendarLink: {
-    marginTop :10,
+    marginTop: 10,
     width: 100,
     backgroundColor: 'orange',
     alignItems: 'center',
-    justifyContent: 'center', 
+    justifyContent: 'center',
     paddingVertical: 15,
     borderRadius: 25,
-    alignSelf: 'center', 
+    alignSelf: 'center',
   },
   calendarLinkText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold'
+    fontWeight: 'bold',
   },
   list: {
     paddingBottom: 16,
@@ -294,20 +320,33 @@ const styles = StyleSheet.create({
     color: "#1D4B8F",
     marginBottom: 4,
   },
-  detailsButton: {
-    marginTop: 8,
-    alignItems: 'center',
-   
-  },
+
   detailsContainer: {
     marginTop: 8,
-    backgroundColor: '#f0f0f0',
     padding: 8,
-    borderRadius: 4,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 8,
   },
   detailsText: {
     fontSize: 14,
     color: 'gray',
+  },
+  actionsContainer: {
+    flexDirection: 'row', // Les éléments seront sur la même ligne
+    justifyContent: 'space-between', // Espace entre les éléments
+    alignItems: 'center', // Alignement vertical des éléments
+    marginTop: 8, // Espacement au-dessus de l'action
+  },
+  detailsButton: {
+   
+    alignItems: 'flex-start', // Aligner à gauche
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f1f1f1',
+    borderRadius: 8,
+  },
+  trashButton: {
+    marginLeft: 16, // Ajouter un espacement à gauche pour la corbeille
   },
 });
 

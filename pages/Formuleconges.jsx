@@ -83,8 +83,8 @@ const DemandeConge = () => {
       datel: new Date().toISOString(),
       datec: new Date().toISOString(),
       categorie: values.service,
-      etatbp: "",
-      etatbp1: "",
+      etatbp: null,
+      etatbp1: null,
       des: values.remarque,
       ref: reference, 
     };
